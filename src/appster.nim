@@ -7,14 +7,12 @@ export events
 
 type KillError = object of CatchableError
 proc shutdownServer*() =
+  ## Triggers the shut down of the server
   raise newException(KillError, "Shutdown")
-
-type Server*[SMsg, CMsg] = Thread[ChannelHub[SMsg, CMsg]]
   
 type ServerData*[SMsg, CMsg] = object
-  # loggers*: seq[Logger]
   hub*: ChannelHub[SMsg, CMsg]
-  sleepMs*: int
+  sleepMs*: int # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   startUp*: seq[Event]
   shutDown*: seq[Event]
 
@@ -42,7 +40,7 @@ proc runServer*[SMsg, CMsg](
         except Exception as e:
           log.warn("Encountered Exception: " & e.repr)
 
-      sleep(1) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
+      sleep(data.sleepMs)
   
     data.shutDown.execEvents()
 
