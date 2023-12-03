@@ -42,8 +42,9 @@ when isMainModule:
   clientRoute(handleMessage1)
   clientRoute(handleMessage2)
   serverRoute(handleMessage1)
-  generate()
-
+  generateClientCode()
+  generateServerCode()
+  
   import std/sequtils
 
   let hub = new(ChannelHub[string, string])

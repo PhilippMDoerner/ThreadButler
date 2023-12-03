@@ -116,12 +116,12 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
     )
   )
   
-  for routeName, msgType in routes:
+  for routeName, msgTypeName in routes:
     let branchNode = nnkOfBranch.newTree(
       newIdentNode(routeName.kindName),
       newIdentDefs(
         newIdentNode(routeName.fieldName),
-        msgType
+        msgTypeName
       )
     )
     
@@ -158,7 +158,7 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     newDotExpr(ident(msgParamName), ident("kind"))
   )
   
-  for routeName, msgType in routes:
+  for routeName, _ in routes:
     let fieldName = routeName & "Msg"
     # Generates proc call `<routeName>(<msgParamName>.<fieldName>, hub)`
     let handlerCall = nnkCall.newTree(
@@ -177,7 +177,35 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc generateAndAddCodeFor(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
+proc genSendToServerProc(procName: string, msgVariantTypeName: string, msgTypeName: string): NimNode =
+  let procNode = newIdentNode(procName)
+  let typeNode = newIdentNode(msgTypeName)
+  let variantTypeNode = newIdentNode(msgVariantTypeName)
+  let kindNode = newIdentNode(procName.kindName)
+  let fieldNode = newIdentNode(procName.fieldName)
+  
+  quote do:
+    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`) =
+      let msgWrapper = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
+      hub.sendToServer(msgWrapper)
+      
+proc genSendToClientProc(procName: string, msgVariantTypeName: string, routeName: string, msgTypeName: string): NimNode =
+  let procNode = newIdentNode(procName)
+  let typeNode = newIdentNode(msgTypeName)
+  let variantTypeNode = newIdentNode(msgVariantTypeName)
+  let kindNode = newIdentNode(routeName.kindName)
+  let fieldNode = newIdentNode(routeName.fieldName)
+  
+  quote do:
+    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`) =
+      let msgWrapper = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
+      hub.sendToClient(msgWrapper)
+      
+proc generateAndAddCodeFor(
+  node: NimNode, 
+  routes: CacheTable, 
+  enumName, typeName, procName: string
+) =
   ## Adds the various pieces of code that need to be generated to the output
   let messageEnum = routes.asEnum(enumName)
   node.add(messageEnum)
@@ -187,11 +215,21 @@ proc generateAndAddCodeFor(node: NimNode, routes: CacheTable, enumName: string, 
   
   let routerProc = routes.genMessageRouter(typeName)
   node.add(routerProc)
+  
+  for routeName, msgType in routes:
+    let sendProcDef = genSendToClientProc(procName, typeName, routeName, $msgType)
+    node.add(sendProcDef)
 
-macro generate*(): untyped =
+macro generateServerCode*(send2ClientName: string = "send"): untyped =
   result = newStmtList()
-  result.generateAndAddCodeFor(serverRoutes, "ServerMessageKind", "ServerMessage")
-  result.generateAndAddCodeFor(clientRoutes, "ClientMessageKind", "ClientMessage")
+  result.generateAndAddCodeFor(serverRoutes, "ServerMessageKind", "ServerMessage", $send2ClientName)
+  
+  when defined(appsterDebug):
+    echo result.repr
+
+macro generateClientCode*(send2ServerName: string = "send"): untyped =
+  result = newStmtList()
+  result.generateAndAddCodeFor(clientRoutes, "ClientMessageKind", "ClientMessage", $send2ServerName)
   
   when defined(appsterDebug):
     echo result.repr
