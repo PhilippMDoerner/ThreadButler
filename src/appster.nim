@@ -11,14 +11,14 @@ type Appster*[SMsg, CMsg] = object
   channels: ChannelHub[SMsg, CMsg]
 
 proc runServer*[SMsg, CMsg](sleepMs: int = 0): Appster[SMsg, CMsg] =
-  mixin handleClientMessage
+  mixin routeMessage
   let channels = new(ChannelHub[SMsg, CMsg])
   
   proc serverLoop(hub: ChannelHub[SMsg, CMsg]) =
     while true:
       let msg = hub.readClientMsg()
       if msg.isSome():
-        handleClientMessage(hub, msg)
+        routeMessage(msg, hub)
         discard hub.sendToClient("Received Message ")
 
       sleep(sleepMs) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
@@ -28,11 +28,6 @@ proc runServer*[SMsg, CMsg](sleepMs: int = 0): Appster[SMsg, CMsg] =
     channels: channels
   )
 
-## Next Step:
-## - Write a first client to run with an Appster Server
-## - Actually generate handle<X>Message procs instead of the dummies that are there right now
-
-# Dummy code
 
 when isMainModule:
   type Message1 = object

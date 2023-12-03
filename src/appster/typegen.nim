@@ -4,6 +4,11 @@ import ./utils
 const clientRoutes = CacheTable"clientRouteTable"
 const serverRoutes = CacheTable"serverRouteTable"
 
+## TODO: 
+## 1) Clean up the code
+## 2) Generate "send" procs for each message type 
+## 3) Add support for messages without content
+
 type Message* = concept m
   m.kind is enum
 
@@ -13,7 +18,9 @@ proc kindName(x: RouteName): string = x.string & "Kind"
 proc fieldName(x: RouteName): string = x.string & "Msg"
 
 proc addRoute*(routes: CacheTable, procDef: NimNode) =
-  procDef.assertKind(nnkProcDef, "\nYou need a proc definition to add a route in order to extract the first parameter")
+  ## Stores a proc definition as "route" in `routes`.
+  ## The proc's name is used as name of the route.
+  procDef.assertKind(nnkProcDef, "You need a proc definition to add a route in order to extract the first parameter")
     
   let procName: string = $procDef.name
   if routes.hasKey(procName):
@@ -31,7 +38,7 @@ proc addRoute*(routes: CacheTable, procDef: NimNode) =
   routes[procName] = firstParamType
 
 proc getProcDef(node: NimNode): NimNode =
-  ## Utility proc. Checks if node is of a supported kind and tries to fetch a procDef from that if it is supported.
+  ## Utility proc. Tries to extract a procDef from `node`.
   node.assertKind(@[nnkProcDef, nnkSym])
   
   return case node.kind:
@@ -45,7 +52,8 @@ proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
 
 macro clientRoute*(input: typed): untyped =
-  ## Registers the client route with appster for code-generation with `generate()`
+  ## Registers a proc for handling messages as "client route" with appster.
+  ## This is used for code-generation with `generate()`
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
@@ -63,8 +71,8 @@ macro clientRoute*(input: typed): untyped =
     return input ## Necessary so that the defined proc does not "disappear"
 
 macro serverRoute*(input: typed): untyped =
-  ## Registers the server route with appster for code-generation with `generate()`
-  
+  ## Registers a proc for handling messages as "server route" with appster.
+  ## This is used for code-generation with `generate()`
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
@@ -82,10 +90,10 @@ macro serverRoute*(input: typed): untyped =
     return input ## Necessary so that the defined proc does not "disappear"
 
 
-proc asEnum(tbl: CacheTable, enumName: string): NimNode =
-  ## Generates an enum `enumName` with all keys in `tbl` turned into enum values.
+proc asEnum(routes: CacheTable, enumName: string): NimNode =
+  ## Generates an enum type `enumName` with all keys in `routes` turned into enum values.
   var enumFields: seq[NimNode] = @[]
-  for routeName, _ in tbl:
+  for routeName, _ in routes:
     enumFields.add(ident(routeName.kindName))
   
   newEnum(
@@ -96,6 +104,10 @@ proc asEnum(tbl: CacheTable, enumName: string): NimNode =
   )
 
 proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode =
+  ## Generates an object variant type `typeName` using the enum called `enumName`.
+  ## Each variation of the variant has 1 field. 
+  ## The type of that field is the message type stored in the NimNode in `routes`.
+
   let caseNode = nnkRecCase.newTree(
     nnkIdentDefs.newTree(
       newIdentNode("kind"),
@@ -165,7 +177,8 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc addGeneratedNodes(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
+proc generateAndAddCodeFor(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
+  ## Adds the various pieces of code that need to be generated to the output
   let messageEnum = routes.asEnum(enumName)
   node.add(messageEnum)
   
@@ -177,8 +190,8 @@ proc addGeneratedNodes(node: NimNode, routes: CacheTable, enumName: string, type
 
 macro generate*(): untyped =
   result = newStmtList()
-  result.addGeneratedNodes(serverRoutes, "ServerMessageKind", "ServerMessage")
-  result.addGeneratedNodes(clientRoutes, "ClientMessageKind", "ClientMessage")
+  result.generateAndAddCodeFor(serverRoutes, "ServerMessageKind", "ServerMessage")
+  result.generateAndAddCodeFor(clientRoutes, "ClientMessageKind", "ClientMessage")
   
   when defined(appsterDebug):
     echo result.repr
