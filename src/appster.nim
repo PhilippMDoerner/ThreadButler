@@ -26,21 +26,30 @@ proc runServer*[SMsg, CMsg](sleepMs: int = 0, channels: ChannelHub[SMsg, CMsg] )
 
 when isMainModule:
   type S2CMessage = object
-    name: string
   type C2SMessage = object
+    text: string
   
   proc handleServerToClientMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
-    echo "On Client: Got Msg from Server!"
+    echo "On Client: Got Msg from Server: "
+    
   proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
-    echo "On Server: Got Msg from Client!"
+    echo "On Server: Handling msg: ", msg.text
 
   generate()
+
 
   proc main() =
     let channels = new(ChannelHub[ServerMessage, ClientMessage])
     let thread = runServer[ServerMessage, ClientMessage](0, channels)
     # echo "after server instantiation"
-    discard channels.sendToServer(C2SMessage())
+  
+    echo "Type in a message to send to the Backend!"
+    while true:
+      let terminalInput = readLine(stdin) # This is blocking, so this Thread doesn't run through unnecessary while-loop iterations unlike the receiver thread
+      let msg = C2SMessage(text: terminalInput)
+      while not channels.sendToServer(msg):
+        echo "Try again"
+        
     joinThread(thread)
   
   main()
