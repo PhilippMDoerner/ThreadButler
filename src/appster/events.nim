@@ -17,3 +17,13 @@ func initEvent*(handler: AsyncEvent): Event =
 func initEvent*(handler: SyncEvent): Event =
   ## Initializes a new synchronous event. 
   Event(async: false, syncHandler: handler)
+
+proc exec*(event: Event) {.inline.} =
+  if event.async:
+    waitFor event.asyncHandler()
+  else:
+    event.syncHandler()
+
+proc execEvents*(events: seq[Event]) =
+  for event in events:
+    event.exec()

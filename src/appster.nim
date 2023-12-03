@@ -18,12 +18,17 @@ type ServerData*[SMsg, CMsg] = object
   startUp*: seq[Event]
   shutDown*: seq[Event]
 
+proc execStartupEvents[SMSg, CMsg](data: ServerData[SMSg, CMsg]) =
+  for event in data.startUp:
+    event.exec()
+
 proc runServer*[SMsg, CMsg](
   data: var ServerData[SMsg, CMsg]
 ): Thread[ServerData[SMsg, CMsg]] =
   mixin routeMessage
 
   proc serverLoop(data: ServerData[SMsg, CMsg]) {.gcsafe.}=
+    data.startUp.execEvents()
     
     while true:
       let msg = data.hub.readClientMsg()
@@ -32,4 +37,6 @@ proc runServer*[SMsg, CMsg](
 
       sleep(1) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   
+    data.shutDown.execEvents()
+
   createThread(result, serverLoop, data)

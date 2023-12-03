@@ -26,7 +26,7 @@ proc readClientMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): Option[CMsg] =
   let response: tuple[dataAvailable: bool, msg: CMsg] = hub.clientChannel.tryRecv()
   
   result = if response.dataAvailable:
-      debug fmt"read client => server: {response.repr}"
+      debug fmt"read client => server: {response.msg.repr}"
       some(response.msg)
     else:
       none(CMsg)
@@ -35,7 +35,7 @@ proc readServerMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): Option[SMsg] =
   let response: tuple[dataAvailable: bool, msg: SMsg] = hub.serverChannel.tryRecv()
 
   result = if response.dataAvailable:
-      debug fmt"read client <= server: {response.repr}"
+      debug fmt"read client <= server: {response.msg.repr}"
       some(response.msg)
     else:
       none(SMsg)

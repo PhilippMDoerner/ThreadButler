@@ -17,6 +17,13 @@ proc getStartupEvents(): seq[Event] =
   let loggerEvent = initEvent(() => addHandler(newConsoleLogger()))
   result.add(loggerEvent)
 
+  let helloWorldEvent = initEvent(() => debug "Server startin up!")
+  result.add(helloWorldEvent)
+  
+proc getShutdownEvents(): seq[Event] =
+  let byebyeWorldEvent = initEvent(() => debug "Server shutting down!")
+  result.add(byebyeWorldEvent)
+
 proc main() =
   var channels = new(ChannelHub[ServerMessage, ClientMessage])
   let sleepMs = 0
@@ -24,7 +31,7 @@ proc main() =
     hub: channels,
     sleepMs: sleepMs,
     startUp: getStartupEvents(),
-    shutDown: @[]
+    shutDown: getShutdownEvents()
   )
   
   let thread: Thread[
