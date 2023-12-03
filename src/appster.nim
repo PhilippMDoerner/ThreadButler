@@ -1,15 +1,15 @@
 import std/[options, os, logging]
-import ./appster/[typegen, communication, events]
+import ./appster/[typegen, communication, events, log]
 
 export typegen
 export communication
 export events
 
-type Server*[SMsg, CMsg] = Thread[ChannelHub[SMsg, CMsg]]
+type KillError = object of CatchableError
+proc shutdownServer*() =
+  raise newException(KillError, "Shutdown")
 
-type Appster*[SMsg, CMsg] = object
-  server: Server[SMsg, CMsg]
-  channels: ChannelHub[SMsg, CMsg]
+type Server*[SMsg, CMsg] = Thread[ChannelHub[SMsg, CMsg]]
   
 type ServerData*[SMsg, CMsg] = object
   # loggers*: seq[Logger]
@@ -33,7 +33,14 @@ proc runServer*[SMsg, CMsg](
     while true:
       let msg = data.hub.readClientMsg()
       if msg.isSome():
-        routeMessage(msg.get(), data.hub)
+        try:
+          routeMessage(msg.get(), data.hub)
+        
+        except KillError:
+          break
+        
+        except Exception as e:
+          log.warn("Encountered Exception: " & e.repr)
 
       sleep(1) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   

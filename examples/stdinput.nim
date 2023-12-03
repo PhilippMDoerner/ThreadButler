@@ -5,11 +5,16 @@ type S2CMessage = object
 type C2SMessage = object
   text: string
 
+type KillMessage = object
+
 proc handleServerToClientMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
   echo "On Client: Got Msg from Server: "
   
 proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
   echo "On Server: Handling msg: ", msg.text
+
+proc triggerShutdown(msg: KillMessage, hub: auto) {.serverRoute.} =
+  shutdownServer()
 
 generate()
 
@@ -41,9 +46,14 @@ proc main() =
   echo "Type in a message to send to the Backend!"
   while true:
     let terminalInput = readLine(stdin) # This is blocking, so this Thread doesn't run through unnecessary while-loop iterations unlike the receiver thread
-    let msg = C2SMessage(text: terminalInput)
-    while not channels.sendToServer(msg):
-      echo "Try again"
+    if terminalInput == "kill":
+      discard channels.sendToServer(KillMessage())
+      break
+    
+    else:
+      let msg = C2SMessage(text: terminalInput)
+      discard channels.sendToServer(msg)
+
   joinThread(thread)
 
 main()
