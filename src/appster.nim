@@ -1,55 +1,35 @@
-import std/[options, os]
-import ./appster/[typegen, communication]
+import std/[options, os, logging]
+import ./appster/[typegen, communication, events]
 
 export typegen
 export communication
+export events
 
 type Server*[SMsg, CMsg] = Thread[ChannelHub[SMsg, CMsg]]
 
 type Appster*[SMsg, CMsg] = object
   server: Server[SMsg, CMsg]
   channels: ChannelHub[SMsg, CMsg]
+  
+type ServerData*[SMsg, CMsg] = object
+  # loggers*: seq[Logger]
+  hub*: ChannelHub[SMsg, CMsg]
+  sleepMs*: int
+  startUp*: seq[Event]
+  shutDown*: seq[Event]
 
-proc runServer*[SMsg, CMsg](sleepMs: int = 0, channels: ChannelHub[SMsg, CMsg] ): Thread[ChannelHub[SMsg, CMsg]] =
+proc runServer*[SMsg, CMsg](
+  data: var ServerData[SMsg, CMsg]
+): Thread[ServerData[SMsg, CMsg]] =
   mixin routeMessage
 
-  proc serverLoop(hub: ChannelHub[SMsg, CMsg]) =
+  proc serverLoop(data: ServerData[SMsg, CMsg]) {.gcsafe.}=
+    
     while true:
-      let msg = hub.readClientMsg()
+      let msg = data.hub.readClientMsg()
       if msg.isSome():
-        routeMessage(msg.get(), hub)
+        routeMessage(msg.get(), data.hub)
 
       sleep(1) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   
-  createThread(result, serverLoop, channels)
-
-
-when isMainModule:
-  type S2CMessage = object
-  type C2SMessage = object
-    text: string
-  
-  proc handleServerToClientMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
-    echo "On Client: Got Msg from Server: "
-    
-  proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
-    echo "On Server: Handling msg: ", msg.text
-
-  generate()
-
-
-  proc main() =
-    let channels = new(ChannelHub[ServerMessage, ClientMessage])
-    let thread = runServer[ServerMessage, ClientMessage](0, channels)
-    # echo "after server instantiation"
-  
-    echo "Type in a message to send to the Backend!"
-    while true:
-      let terminalInput = readLine(stdin) # This is blocking, so this Thread doesn't run through unnecessary while-loop iterations unlike the receiver thread
-      let msg = C2SMessage(text: terminalInput)
-      while not channels.sendToServer(msg):
-        echo "Try again"
-        
-    joinThread(thread)
-  
-  main()
+  createThread(result, serverLoop, data)

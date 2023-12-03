@@ -1,4 +1,5 @@
-import std/options
+import std/[strformat, options]
+import ./log
 
 type ChannelHub*[SMsg, CMsg] = ref object
   serverChannel: Channel[SMsg]
@@ -14,18 +15,18 @@ proc destroy*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]) =
   hub.clientChannel.close()
 
 proc sendMsgToServer*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: CMsg): bool =
-  echo "send client => server: ", msg.repr
+  debug fmt"send client => server: {msg.repr}"
   hub.clientChannel.trySend(msg)
   
 proc sendMsgToClient*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: SMsg): bool =
-  echo "send client <= server: ", msg.repr
+  debug fmt"send client <= server: {msg.repr}"
   hub.serverChannel.trySend(msg)
 
 proc readClientMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): Option[CMsg] =
   let response: tuple[dataAvailable: bool, msg: CMsg] = hub.clientChannel.tryRecv()
   
   result = if response.dataAvailable:
-      echo "read client => server: ", response.repr
+      debug fmt"read client => server: {response.repr}"
       some(response.msg)
     else:
       none(CMsg)
@@ -34,7 +35,7 @@ proc readServerMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): Option[SMsg] =
   let response: tuple[dataAvailable: bool, msg: SMsg] = hub.serverChannel.tryRecv()
 
   result = if response.dataAvailable:
-      echo "read client <= server: ", response.repr
+      debug fmt"read client <= server: {response.repr}"
       some(response.msg)
     else:
       none(SMsg)

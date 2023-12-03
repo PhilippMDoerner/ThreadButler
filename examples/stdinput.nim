@@ -1,4 +1,5 @@
 import appster
+import std/[sugar, logging]
 
 type S2CMessage = object
 type C2SMessage = object
@@ -12,10 +13,23 @@ proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} =
 
 generate()
 
+proc getStartupEvents(): seq[Event] =
+  let loggerEvent = initEvent(() => addHandler(newConsoleLogger()))
+  result.add(loggerEvent)
+
 proc main() =
-  let channels = new(ChannelHub[ServerMessage, ClientMessage])
-  let thread = runServer[ServerMessage, ClientMessage](0, channels)
-  # echo "after server instantiation"
+  var channels = new(ChannelHub[ServerMessage, ClientMessage])
+  let sleepMs = 0
+  var data: ServerData[ServerMessage, ClientMessage] = ServerData[ServerMessage, ClientMessage](
+    hub: channels,
+    sleepMs: sleepMs,
+    startUp: getStartupEvents(),
+    shutDown: @[]
+  )
+  
+  let thread: Thread[
+    ServerData[ServerMessage, ClientMessage]
+  ] = data.runServer()
 
   echo "Type in a message to send to the Backend!"
   while true:
