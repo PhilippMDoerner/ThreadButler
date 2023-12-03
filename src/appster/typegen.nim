@@ -197,6 +197,17 @@ proc addTypeCode(
   enumName, typeName: string
 ) =
   ## Adds the various pieces of code that need to be generated to the output
+  ## TODO: Clean this up. The idea here is that you need to have something functional even if there are no messages going S => C or C => S
+  let hasRoutes = routes.len() > 0
+  if not hasRoutes:
+    # Fallback, generate empty object type
+    let typeNode = ident(typeName)
+    let emptyObjectType = quote do:
+      type `typeNode` = object
+    
+    node.add(emptyObjectType)
+    return
+    
   let messageEnum = routes.asEnum(enumName)
   node.add(messageEnum)
   
