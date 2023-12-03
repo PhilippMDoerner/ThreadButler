@@ -1,4 +1,5 @@
 import std/[macros, macrocache, strformat, strutils]
+import ./utils
 
 const clientRoutes = CacheTable"clientRouteTable"
 const serverRoutes = CacheTable"serverRouteTable"
@@ -6,7 +7,14 @@ const serverRoutes = CacheTable"serverRouteTable"
 type Message* = concept m
   m.kind is enum
 
+type RouteName = string
+
+proc kindName(x: RouteName): string = x.string & "Kind"
+proc fieldName(x: RouteName): string = x.string & "Msg"
+
 proc addRoute*(routes: CacheTable, procDef: NimNode) =
+  procDef.assertKind(nnkProcDef, "\nYou need a proc definition to add a route in order to extract the first parameter")
+    
   let procName: string = $procDef.name
   if routes.hasKey(procName):
     let otherProcLine: string = routes[procName].lineInfo
@@ -22,26 +30,67 @@ proc addRoute*(routes: CacheTable, procDef: NimNode) =
   let firstParamType = firstParam[1]
   routes[procName] = firstParamType
 
-macro clientRoute*(procDef: typed): untyped =
+proc getProcDef(node: NimNode): NimNode =
+  ## Utility proc. Checks if node is of a supported kind and tries to fetch a procDef from that if it is supported.
+  node.assertKind(@[nnkProcDef, nnkSym])
+  
+  return case node.kind:
+    of nnkProcDef: node
+    of nnkSym:
+      node.getImpl()
+    else:
+      raise newException(ValueError, fmt"Developer Error: The supported NimNodeKind {node.kind} was not dealt with!")
+
+proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
+  
+
+macro clientRoute*(input: typed): untyped =
   ## Registers the client route with appster for code-generation with `generate()`
+  input.expectKind(
+    @[nnkProcDef, nnkSym], 
+    fmt"""
+      Tried to register `{input.repr.strip()}` as clientRoute with unsupported syntax!
+      The following are supported:
+        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.clientRoute.\}"}
+        - clientRoute(myProc)
+    """.dedent(6)
+  )
+  
+  let procDef = input.getProcDef()
   clientRoutes.addRoute(procDef)
   
-  return procDef
+  if input.isDefiningProc():
+    return input ## Necessary so that the defined proc does not "disappear"
 
-macro serverRoute*(procDef: typed): untyped =
+macro serverRoute*(input: typed): untyped =
   ## Registers the server route with appster for code-generation with `generate()`
+  
+  input.expectKind(
+    @[nnkProcDef, nnkSym], 
+    fmt"""
+      Tried to register `{input.repr.strip()}` as serverRoute with unsupported syntax!
+      The following are supported:
+        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.serverRoute.\}"}
+        - serverRoute(myProc)
+    """.dedent(6)
+  )
+  
+  let procDef = input.getProcDef()
   serverRoutes.addRoute(procDef)
   
-  return procDef
+  if input.isDefiningProc():
+    return input ## Necessary so that the defined proc does not "disappear"
+
 
 proc asEnum(tbl: CacheTable, enumName: string): NimNode =
-  var fields: seq[NimNode] = @[]
-  for field, value in tbl:
-    fields.add(ident(field & "Kind"))
+  ## Generates an enum `enumName` with all keys in `tbl` turned into enum values.
+  var enumFields: seq[NimNode] = @[]
+  for routeName, _ in tbl:
+    enumFields.add(ident(routeName.kindName))
   
   newEnum(
     name = ident(enumName), 
-    fields = fields, 
+    fields = enumFields, 
     public = true,
     pure = true
   )
@@ -55,12 +104,12 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
     )
   )
   
-  for name, value in routes:
+  for routeName, msgType in routes:
     let branchNode = nnkOfBranch.newTree(
-      newIdentNode(name & "Kind"),
+      newIdentNode(routeName.kindName),
       newIdentDefs(
-        newIdentNode(name & "Msg"),
-        value
+        newIdentNode(routeName.fieldName),
+        msgType
       )
     )
     
@@ -96,17 +145,17 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
   let caseStmt = nnkCaseStmt.newTree(
     newDotExpr(ident(msgParamName), ident("kind"))
   )
+  
   for routeName, msgType in routes:
     let fieldName = routeName & "Msg"
-    # Generates "`routeName`(`msgParamName`.`fieldName`, hub)"
-    let procName: string = routeName
+    # Generates proc call `<routeName>(<msgParamName>.<fieldName>, hub)`
     let handlerCall = nnkCall.newTree(
-      ident(procName),
-      newDotExpr(ident(msgParamName), ident(fieldName)),
+      ident(routeName),
+      newDotExpr(ident(msgParamName), ident(routeName.fieldName)),
       ident("hub")
     )
     
-    # Generates "of `routeName`: `handlerCall`"
+    # Generates `of <routeName>: <handlerCall>`
     let branchNode = nnkOfBranch.newTree(
       newDotExpr(ident(msgVariantTypeName & "Kind"), ident(routeName & "Kind")),
       newStmtList(handlerCall)
@@ -115,9 +164,8 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     caseStmt.add(branchNode)
     
   result.body.add(caseStmt)
-  
 
-proc addTypeNodes(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
+proc addGeneratedNodes(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
   let messageEnum = routes.asEnum(enumName)
   node.add(messageEnum)
   
@@ -129,14 +177,8 @@ proc addTypeNodes(node: NimNode, routes: CacheTable, enumName: string, typeName:
 
 macro generate*(): untyped =
   result = newStmtList()
-  result.addTypeNodes(serverRoutes, "ServerMessageKind", "ServerMessage")
-  result.addTypeNodes(clientRoutes, "ClientMessageKind", "ClientMessage")
+  result.addGeneratedNodes(serverRoutes, "ServerMessageKind", "ServerMessage")
+  result.addGeneratedNodes(clientRoutes, "ClientMessageKind", "ClientMessage")
   
   when defined(appsterDebug):
     echo result.repr
-
-proc handleServerMessage*(msg: Message) =
-  echo "Server Message: ", msg.repr
-  
-proc handleClientMessage*(msg: Message) =
-  echo "Client Message: ", msg.repr

@@ -11,6 +11,7 @@ type Appster*[SMsg, CMsg] = object
   channels: ChannelHub[SMsg, CMsg]
 
 proc runServer*[SMsg, CMsg](sleepMs: int = 0): Appster[SMsg, CMsg] =
+  mixin handleClientMessage
   let channels = new(ChannelHub[SMsg, CMsg])
   
   proc serverLoop(hub: ChannelHub[SMsg, CMsg]) =
@@ -39,10 +40,13 @@ when isMainModule:
   type Message2 = object
 
 
-  proc handleMessage1(msg: Message1, hub: ChannelHub) {.clientRoute.} = echo "Message1"
-  proc handleMessage2(msg: Message2, hub: ChannelHub) {.serverRoute.} = 
+  proc handleMessage1(msg: Message1, hub: ChannelHub[string, string]) = echo "Message1"
+  proc handleMessage2(msg: Message2, hub: ChannelHub[string, string]) {.serverRoute.} = 
     echo "Message2"
 
+  clientRoute(handleMessage1)
+  clientRoute(handleMessage2)
+  serverRoute(handleMessage1)
   generate()
 
   import std/sequtils
