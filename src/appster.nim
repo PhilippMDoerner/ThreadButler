@@ -39,16 +39,14 @@ when isMainModule:
   type Message2 = object
 
 
-  proc handleMessage(msg: Message1, hub: ChannelHub) = echo "Message1"
-  proc handleMessage(msg: Message2, hub: ChannelHub) = echo "Message2"
-
-  registerClientRoute("route1", Message1)
-  registerServerRoute("otherRoute", Message2)
+  proc handleMessage1(msg: Message1, hub: ChannelHub) {.clientRoute.} = echo "Message1"
+  proc handleMessage2(msg: Message2, hub: ChannelHub) {.serverRoute.} = 
+    echo "Message2"
 
   generate()
 
   import std/sequtils
 
   let hub = new(ChannelHub[string, string])
-  let msg = ServerMessage(kind: otherRoute, otherRouteMsg: Message2())
+  let msg = ServerMessage(kind: handleMessage2Kind, handleMessage2Msg: Message2())
   routeMessage(msg, hub)

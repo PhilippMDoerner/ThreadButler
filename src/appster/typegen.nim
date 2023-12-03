@@ -1,4 +1,4 @@
-import std/[macros, macrocache]
+import std/[macros, macrocache, strformat, strutils]
 
 const clientRoutes = CacheTable"clientRouteTable"
 const serverRoutes = CacheTable"serverRouteTable"
@@ -6,16 +6,38 @@ const serverRoutes = CacheTable"serverRouteTable"
 type Message* = concept m
   m.kind is enum
 
-macro registerClientRoute*(name: static[string], typNode: typed) =
-  clientRoutes[name] = typNode
+proc addRoute*(routes: CacheTable, procDef: NimNode) =
+  let procName: string = $procDef.name
+  if routes.hasKey(procName):
+    let otherProcLine: string = routes[procName].lineInfo
+    error(
+      fmt"""'{procName}' could not be registered. 
+        A proc with that name was already registered!
+        Previous proc declaration here: {otherProcLine}
+      """.dedent(8), 
+      procDef
+    )
+  
+  let firstParam = procDef.params[1]
+  let firstParamType = firstParam[1]
+  routes[procName] = firstParamType
 
-macro registerServerRoute*(name: static[string], typNode: typed) =
-  serverRoutes[name] = typNode
+macro clientRoute*(procDef: typed): untyped =
+  ## Registers the client route with appster for code-generation with `generate()`
+  clientRoutes.addRoute(procDef)
+  
+  return procDef
+
+macro serverRoute*(procDef: typed): untyped =
+  ## Registers the server route with appster for code-generation with `generate()`
+  serverRoutes.addRoute(procDef)
+  
+  return procDef
 
 proc asEnum(tbl: CacheTable, enumName: string): NimNode =
   var fields: seq[NimNode] = @[]
   for field, value in tbl:
-    fields.add(ident(field))
+    fields.add(ident(field & "Kind"))
   
   newEnum(
     name = ident(enumName), 
@@ -35,7 +57,7 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
   
   for name, value in routes:
     let branchNode = nnkOfBranch.newTree(
-      newIdentNode(name),
+      newIdentNode(name & "Kind"),
       newIdentDefs(
         newIdentNode(name & "Msg"),
         value
@@ -57,8 +79,9 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
   )
   
 proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
-  ## Generates proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)
-  ## Which is a gigantic switch-case statement over all kinds of the variant
+  ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
+  ## `msgVariantTypeName` must be the name of an object variant type.
+  ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
   let returnTyp = newEmptyNode()
   result = newProc(name = ident("routeMessage"))
@@ -75,23 +98,23 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
   )
   for routeName, msgType in routes:
     let fieldName = routeName & "Msg"
-    # Generates "handleMessage(`msgParamName`.`fieldName`, hub)"
+    # Generates "`routeName`(`msgParamName`.`fieldName`, hub)"
+    let procName: string = routeName
     let handlerCall = nnkCall.newTree(
-      ident("handleMessage"),
+      ident(procName),
       newDotExpr(ident(msgParamName), ident(fieldName)),
       ident("hub")
     )
     
     # Generates "of `routeName`: `handlerCall`"
     let branchNode = nnkOfBranch.newTree(
-      ident(routeName),
+      newDotExpr(ident(msgVariantTypeName & "Kind"), ident(routeName & "Kind")),
       newStmtList(handlerCall)
     )
     
     caseStmt.add(branchNode)
     
   result.body.add(caseStmt)
-  echo result.repr
   
 
 proc addTypeNodes(node: NimNode, routes: CacheTable, enumName: string, typeName: string) =
