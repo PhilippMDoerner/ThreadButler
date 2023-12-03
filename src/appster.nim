@@ -1,4 +1,4 @@
-import std/os
+import std/[options, os]
 import ./appster/[typegen, communication]
 
 export typegen
@@ -10,43 +10,37 @@ type Appster*[SMsg, CMsg] = object
   server: Server[SMsg, CMsg]
   channels: ChannelHub[SMsg, CMsg]
 
-proc runServer*[SMsg, CMsg](sleepMs: int = 0): Appster[SMsg, CMsg] =
+proc runServer*[SMsg, CMsg](sleepMs: int = 0, channels: ChannelHub[SMsg, CMsg] ): Thread[ChannelHub[SMsg, CMsg]] =
   mixin routeMessage
-  let channels = new(ChannelHub[SMsg, CMsg])
-  
+
   proc serverLoop(hub: ChannelHub[SMsg, CMsg]) =
     while true:
       let msg = hub.readClientMsg()
       if msg.isSome():
-        routeMessage(msg, hub)
-        discard hub.sendToClient("Received Message ")
+        routeMessage(msg.get(), hub)
 
-      sleep(sleepMs) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
+      sleep(1) # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   
-  return Appster[SMsg, CMsg](
-    server: createThread(result, serverLoop, channels),
-    channels: channels
-  )
+  createThread(result, serverLoop, channels)
 
 
 when isMainModule:
-  type Message1 = object
+  type S2CMessage = object
     name: string
-  type Message2 = object
-
-
-  proc handleMessage1(msg: Message1, hub: ChannelHub[string, string]) = echo "Message1"
-  proc handleMessage2(msg: Message2, hub: ChannelHub[string, string]) {.serverRoute.} = 
-    echo "Message2"
-
-  clientRoute(handleMessage1)
-  clientRoute(handleMessage2)
-  serverRoute(handleMessage1)
-  generateClientCode()
-  generateServerCode()
+  type C2SMessage = object
   
-  import std/sequtils
+  proc handleServerToClientMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
+    echo "On Client: Got Msg from Server!"
+  proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
+    echo "On Server: Got Msg from Client!"
 
-  let hub = new(ChannelHub[string, string])
-  let msg = ServerMessage(kind: handleMessage2Kind, handleMessage2Msg: Message2())
-  routeMessage(msg, hub)
+  generate()
+
+  proc main() =
+    let channels = new(ChannelHub[ServerMessage, ClientMessage])
+    let thread = runServer[ServerMessage, ClientMessage](0, channels)
+    # echo "after server instantiation"
+    discard channels.sendToServer(C2SMessage())
+    joinThread(thread)
+  
+  main()

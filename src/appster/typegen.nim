@@ -5,9 +5,9 @@ const clientRoutes = CacheTable"clientRouteTable"
 const serverRoutes = CacheTable"serverRouteTable"
 
 ## TODO: 
-## 1) Clean up the code
-## 2) Generate "send" procs for each message type 
-## 3) Add support for messages without content
+## 4) Add support for distinct message types
+## 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
+## 6) Change syntax to be more proc-like - Creating a server creates a server object, you attach routes to it and then start it in the end. You can generate code during this process.
 
 type Message* = concept m
   m.kind is enum
@@ -177,34 +177,24 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc genSendToServerProc(procName: string, msgVariantTypeName: string, msgTypeName: string): NimNode =
-  let procNode = newIdentNode(procName)
-  let typeNode = newIdentNode(msgTypeName)
-  let variantTypeNode = newIdentNode(msgVariantTypeName)
-  let kindNode = newIdentNode(procName.kindName)
-  let fieldNode = newIdentNode(procName.fieldName)
-  
-  quote do:
-    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`) =
-      let msgWrapper = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
-      hub.sendToServer(msgWrapper)
-      
-proc genSendToClientProc(procName: string, msgVariantTypeName: string, routeName: string, msgTypeName: string): NimNode =
+proc genSenderProc(procName: string, msgVariantTypeName: string, routeName: string, msgTypeName: string, hubSenderProc: string): NimNode =
+  ## Generates a procedure to send messages to the server via ChannelHub and hiding the object variant.
   let procNode = newIdentNode(procName)
   let typeNode = newIdentNode(msgTypeName)
   let variantTypeNode = newIdentNode(msgVariantTypeName)
   let kindNode = newIdentNode(routeName.kindName)
   let fieldNode = newIdentNode(routeName.fieldName)
+  let hubSenderProcNode = newIdentNode(hubSenderProc)
   
   quote do:
-    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`) =
-      let msgWrapper = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
-      hub.sendToClient(msgWrapper)
+    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`): bool =
+      let msgWrapper: `variantTypeNode` = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
+      return hub.`hubSenderProcNode`(msgWrapper)
       
-proc generateAndAddCodeFor(
+proc addTypeCode(
   node: NimNode, 
   routes: CacheTable, 
-  enumName, typeName, procName: string
+  enumName, typeName: string
 ) =
   ## Adds the various pieces of code that need to be generated to the output
   let messageEnum = routes.asEnum(enumName)
@@ -215,21 +205,62 @@ proc generateAndAddCodeFor(
   
   let routerProc = routes.genMessageRouter(typeName)
   node.add(routerProc)
-  
-  for routeName, msgType in routes:
-    let sendProcDef = genSendToClientProc(procName, typeName, routeName, $msgType)
+
+proc addProcCode(
+  node: NimNode,
+  targetRoutes: CacheTable,
+  variantTypeName, procName, hubSendProc: string, 
+) =
+  for routeName, msgType in targetRoutes:
+    let sendProcDef = genSenderProc(
+      procName, 
+      variantTypeName, 
+      routeName, 
+      $msgType, 
+      hubSendProc
+    )
     node.add(sendProcDef)
 
-macro generateServerCode*(send2ClientName: string = "send"): untyped =
+macro generate*(send2ServerName: string = "sendToServer", send2ClientName: string = "sendToClient"): untyped =
   result = newStmtList()
-  result.generateAndAddCodeFor(serverRoutes, "ServerMessageKind", "ServerMessage", $send2ClientName)
+  let fromClientMsg = "ClientMessage"
+  let fromServerMsg = "ServerMessage"
   
-  when defined(appsterDebug):
-    echo result.repr
+  ## Add enum "ServerMessageKind" and object variant "ServerMessage"
+  ## for servers to send messages to clients 
+  ## This is client <= server. ServerMessages come from the Server
+  result.addTypeCode(
+    clientRoutes, 
+    fromServerMsg.kindName, 
+    fromServerMsg
+  )
+  
+  ## Add enum "ClientMessageKind" and object variant "ClientMessage" types 
+  ## for servers to send messages to client.
+  ## This is client => server. ClientMessages come from the Client
+  result.addTypeCode(
+    serverRoutes, 
+    fromClientMsg.kindName, 
+    fromClientMsg
+  )
+  
+  ## Add sender procs for clients to send messages to the server.
+  ## This is for client <= server. 
+  result.addProcCode(
+    clientRoutes,
+    fromServerMsg,
+    $send2ClientName,
+    "sendMsgToClient"
+  )
+  
+  ## Add sender procs for server to send messages to the client.
+  ## This is for client => server. 
+  result.addProcCode(
+    serverRoutes,
+    fromClientMsg,
+    $send2ServerName,
+    "sendMsgToServer"
+  )
 
-macro generateClientCode*(send2ServerName: string = "send"): untyped =
-  result = newStmtList()
-  result.generateAndAddCodeFor(clientRoutes, "ClientMessageKind", "ClientMessage", $send2ServerName)
-  
   when defined(appsterDebug):
     echo result.repr

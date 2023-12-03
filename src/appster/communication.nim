@@ -13,10 +13,12 @@ proc destroy*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]) =
   hub.serverChannel.close()
   hub.clientChannel.close()
 
-proc sendToServer*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: CMsg): bool =
+proc sendMsgToServer*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: CMsg): bool =
+  echo "send client => server: ", msg.repr
   hub.clientChannel.trySend(msg)
   
-proc sendToClient*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: SMsg): bool =
+proc sendMsgToClient*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: SMsg): bool =
+  echo "send client <= server: ", msg.repr
   hub.serverChannel.trySend(msg)
 
 proc readClientMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): Option[CMsg] =
