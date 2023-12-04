@@ -39,11 +39,7 @@ method view(app: AppState): Widget =
       defaultSize = (500, 150)
       title = "Client Server Example"
       
-      Box:
-        orient = OrientY
-        margin = 12
-        spacing = 6
-        
+      Box(orient = OrientY, margin = 12, spacing = 6):
         Button {.hAlign: AlignCenter, vAlign: AlignCenter.}:
           Label(text = "Click me")
           
