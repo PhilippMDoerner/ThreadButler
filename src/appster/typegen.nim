@@ -1,8 +1,8 @@
 import std/[macros, macrocache, strformat, strutils]
 import ./utils
 
-const clientRoutes = CacheTable"clientRouteTable"
 const serverRoutes = CacheTable"serverRouteTable"
+const serverMsgTypes = CacheTable"serverMsgTypes"
 
 ## TODO: 
 ## 4) Add support for distinct message types
@@ -35,6 +35,7 @@ proc addRoute*(routes: CacheTable, procDef: NimNode) =
   
   let firstParam = procDef.params[1]
   let firstParamType = firstParam[1]
+  echo "Dudu: ", firstParamType.treeRepr
   routes[procName] = firstParamType
 
 proc getProcDef(node: NimNode): NimNode =
@@ -51,24 +52,26 @@ proc getProcDef(node: NimNode): NimNode =
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
 
-macro clientRoute*(input: typed): untyped =
-  ## Registers a proc for handling messages as "client route" with appster.
-  ## This is used for code-generation with `generate()`
-  input.expectKind(
-    @[nnkProcDef, nnkSym], 
-    fmt"""
-      Tried to register `{input.repr.strip()}` as clientRoute with unsupported syntax!
-      The following are supported:
-        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.clientRoute.\}"}
-        - clientRoute(myProc)
-    """.dedent(6)
-  )
+macro serverMessage*(input: typed): untyped =
+  input.expectKind(@[nnkStmtList], "Needs to be a statement list with type section")
+  let typeSection = input[0]
+  typeSection.expectKind(@[nnkTypeSection], "Needs to be a type section")
+  let typeDef = typeSection[0]
+  typeDef.expectKind(@[nnkTypeDef], "Needs to be a typedef")
   
-  let procDef = input.getProcDef()
-  clientRoutes.addRoute(procDef)
+  let typeName = $typeDef[0]
+  if serverMsgTypes.hasKey(typeName):
+    let otherTypeLine: string = serverMsgTypes[typeName].lineInfo
+    error(
+      fmt"""'{typeName}' could not be registered as a server message type. 
+        A type with that name was already registered!
+        Previous type declaration here: {otherTypeLine}
+      """.dedent(8), 
+      typeDef
+    )
   
-  if input.isDefiningProc():
-    return input ## Necessary so that the defined proc does not "disappear"
+  serverMsgTypes[typeName] = typeDef[0]
+  return input
 
 macro serverRoute*(input: typed): untyped =
   ## Registers a proc for handling messages as "server route" with appster.
@@ -214,15 +217,21 @@ proc addTypeCode(
   let messageVariant = routes.asVariant(enumName, typeName)
   node.add(messageVariant)
   
+proc addRoutingProc(
+  node: NimNode, 
+  routes: CacheTable, 
+  typeName: string
+) =
   let routerProc = routes.genMessageRouter(typeName)
   node.add(routerProc)
-
+  
 proc addProcCode(
   node: NimNode,
   targetRoutes: CacheTable,
   variantTypeName, procName, hubSendProc: string, 
 ) =
   for routeName, msgType in targetRoutes:
+    echo "Das: ", msgType.repr
     let sendProcDef = genSenderProc(
       procName, 
       variantTypeName, 
@@ -241,7 +250,7 @@ macro generate*(send2ServerName: string = "sendToServer", send2ClientName: strin
   ## for servers to send messages to clients 
   ## This is client <= server. ServerMessages come from the Server
   result.addTypeCode(
-    clientRoutes, 
+    serverMsgTypes, 
     fromServerMsg.kindName, 
     fromServerMsg
   )
@@ -255,10 +264,17 @@ macro generate*(send2ServerName: string = "sendToServer", send2ClientName: strin
     fromClientMsg
   )
   
+  ## Add routing proc for ClientMessages in the server
+  ## This is for client => server.
+  result.addRoutingProc(
+    serverRoutes,
+    fromClientMsg
+  )
+  
   ## Add sender procs for clients to send messages to the server.
   ## This is for client <= server. 
   result.addProcCode(
-    clientRoutes,
+    serverMsgTypes,
     fromServerMsg,
     $send2ClientName,
     "sendMsgToClient"

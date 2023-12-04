@@ -6,20 +6,22 @@ import std/[sugar, options, logging]
 
 addHandler(newConsoleLogger())
 
-type S2CMessage = object
-  text: string
+## Appster Type Setup
+
+serverMessage:
+  type S2CMessage = object
+    text: string
 
 type C2SMessage = object
   text: string
 
-proc handleS2CMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
-  echo "On Client: Got Msg from Server: "
-  
 proc handleC2SMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
   echo "On Server: Handling msg: ", msg.text
   discard hub.sendToClient(S2CMessage(text: "Response!"))
 
 generate()
+
+## 
 
 viewable App:
   server: ServerData[ServerMessage, ClientMessage]
@@ -31,7 +33,7 @@ viewable App:
 
 method view(app: AppState): Widget =
   let backendMsg: Option[string] = case app.msg.kind:
-    of handleS2CMessageKind: some(app.msg.handleS2CMessageMsg.text)
+    of S2CMessageKind: some(app.msg.S2CMessageMsg.text)
     else: none(string)
   
   result = gui:
@@ -47,7 +49,6 @@ method view(app: AppState): Widget =
             let msg = C2SMessage(text: "Frontend message!")
             discard app.server.sendMessage(msg)
             
-
         Label(text = "Message sent by Backend: ")
         if backendMsg.isSome():
           Label(text = backendMsg.get())
@@ -65,23 +66,19 @@ proc getStartupEvents(): seq[events.Event] =
 ## Main
 proc main() =
   # Server
-  var channels = new(ChannelHub[ServerMessage, ClientMessage])
-  let sleepMs = 0
   var data: ServerData[ServerMessage, ClientMessage] = ServerData[ServerMessage, ClientMessage](
-    hub: channels,
-    sleepMs: sleepMs,
+    hub: new(ChannelHub[ServerMessage, ClientMessage]),
+    sleepMs: 0,
     startUp: getStartupEvents(),
     shutDown: @[]
   )
   let thread: Thread[
     ServerData[ServerMessage, ClientMessage]
   ] = data.runServer()
-  
+  ## TODO: Think about maybe providing your own "brew" proc that sets all this up
   setupClient(data)
   joinThread(thread)
   
   data.hub.destroy()
 
 main()
-
-
