@@ -1,7 +1,7 @@
-import owlkettle
-import owlkettle/bindings/gtk
+import pkg/owlkettle
+import pkg/owlkettle/bindings/gtk
 import ../communication
-import appster
+import ../../appster
 import std/[strformat, options, re, strutils]
   
 proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](app: OwlkettleApp, data: ServerData[SMsg, CMsg], sleepMs: int = 5) =  
