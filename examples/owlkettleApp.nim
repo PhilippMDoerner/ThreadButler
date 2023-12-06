@@ -21,10 +21,11 @@ proc handleC2SMessage(msg: C2SMessage, hub: auto) {.serverRoute.} =
 
 generate()
 
+type ExampleServer = ServerData[ServerMessage, ClientMessage]
 ## 
 
 viewable App:
-  server: ServerData[ServerMessage, ClientMessage]
+  server: ExampleServer
   msg: ServerMessage
   
   hooks:
@@ -53,30 +54,36 @@ method view(app: AppState): Widget =
         if backendMsg.isSome():
           Label(text = backendMsg.get())
 
-proc setupClient[ServerMessage, ClientMessage](server: ServerData[ServerMessage, ClientMessage]) =
-  adw.brew(gui(App(server = server)))
+proc setupClient(
+  server: ExampleServer,
+  startupEvents: seq[ApplicationEvent]
+) =
+  adw.brew(
+    gui(App(server = server)),
+    startupEvents = startupEvents
+  )
 
-proc getStartupEvents(): seq[events.Event] =
+proc getServerStartupEvents(): seq[events.Event] =
   let loggerEvent = initEvent(() => addHandler(newConsoleLogger()))
   result.add(loggerEvent)
 
   let helloWorldEvent = initEvent(() => debug "Server startin up!")
   result.add(helloWorldEvent)
 
+
 ## Main
 proc main() =
   # Server
-  var data: ServerData[ServerMessage, ClientMessage] = ServerData[ServerMessage, ClientMessage](
+  var data = ExampleServer(
     hub: new(ChannelHub[ServerMessage, ClientMessage]),
     sleepMs: 0,
-    startUp: getStartupEvents(),
+    startUp: getServerStartupEvents(),
     shutDown: @[]
   )
-  let thread: Thread[
-    ServerData[ServerMessage, ClientMessage]
-  ] = data.runServer()
-  ## TODO: Think about maybe providing your own "brew" proc that sets all this up
-  setupClient(data)
+  let thread: Thread[ExampleServer] = data.runServer()
+  
+  let event: ApplicationEvent = createListenerEvent[AppState, ServerMessage, ClientMessage](data)
+  setupClient(data, startupEvents = @[event])
   joinThread(thread)
   
   data.hub.destroy()

@@ -1,14 +1,13 @@
 import appster
 import std/[sugar, logging]
 
-type S2CMessage = object
+serverMessage:
+  type S2CMessage = object
+
 type C2SMessage = object
   text: string
 
 type KillMessage = object
-
-proc handleServerToClientMessage(msg: S2CMessage, hub: auto) {.clientRoute.} = 
-  echo "On Client: Got Msg from Server: "
   
 proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
   echo "On Server: Handling msg: ", msg.text
