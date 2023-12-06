@@ -72,17 +72,15 @@ proc getServerStartupEvents(): seq[events.Event] =
 ## Main
 proc main() =
   # Server
-  var data = ExampleServer(
-    hub: new(ChannelHub[ServerMessage, ClientMessage]),
-    sleepMs: 0,
-    startUp: getServerStartupEvents(),
-    shutDown: @[]
+
+  var data: ServerData[ServerMessage, ClientMessage] = initServer(
+    startupEvents = getServerStartupEvents(),
+    shutdownEvents = @[],
+    sleepInMs = 0
   )
-  let thread: Thread[ExampleServer] = data.runServer()
-  setupClient(data)
   
-  joinThread(thread)
-  
-  data.hub.destroy()
+  withServer(data):
+    setupClient(data)
+
 
 main()

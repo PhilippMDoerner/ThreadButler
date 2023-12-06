@@ -32,3 +32,26 @@ template createListenerEvent*(data: typed, stateType: typedesc): ApplicationEven
   proc(state: WidgetState) =
     let state = stateType(state)
     addServerListener(state, data)
+
+template initServer*(
+  shutdownEvents: seq[events.Event] = @[],
+  startupEvents: seq[events.Event] = @[],
+  sleepInMs: int = 0
+): untyped =
+  ServerData[ServerMessage, ClientMessage](
+    hub: new(ChannelHub[ServerMessage, ClientMessage]),
+    sleepMs: sleepInMs,
+    startUp: startupEvents,
+    shutDown: shutdownEvents
+  )
+
+template withServer*(
+  data: var ServerData[typed, typed],
+  body: untyped
+) =
+  let thread: Thread[ServerData[typed, typed]] = runServer(data)
+
+  body
+  
+  joinThread(thread)
+  data.hub.destroy()
