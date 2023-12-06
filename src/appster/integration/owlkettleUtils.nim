@@ -25,7 +25,10 @@ proc sendMessage*[SMsg, CMsg](serverData: ServerData[SMsg, CMsg], msg: auto): bo
   mixin sendToServer
   serverData.hub.sendToServer(msg)
 
-proc createListenerEvent*[T: WidgetState, SMsg, CMsg](data: ServerData[SMsg, CMsg]): ApplicationEvent =
-  result = proc(state: WidgetState) =
-    let state = T(state)
+template createListenerEvent*(data: typed, stateType: typedesc): ApplicationEvent =
+  ## Creates an Owlkettle.ApplicationEvent when starting up the application.
+  ## This enables owlkettle to listen for messages received from the server
+  ## and store them in the application's WidgetState.
+  proc(state: WidgetState) =
+    let state = stateType(state)
     addServerListener(state, data)

@@ -54,13 +54,11 @@ method view(app: AppState): Widget =
         if backendMsg.isSome():
           Label(text = backendMsg.get())
 
-proc setupClient(
-  server: ExampleServer,
-  startupEvents: seq[ApplicationEvent]
-) =
+proc setupClient(server: ExampleServer) =
+  let listener = createListenerEvent(server, AppState)
   adw.brew(
     gui(App(server = server)),
-    startupEvents = startupEvents
+    startupEvents = [listener]
   )
 
 proc getServerStartupEvents(): seq[events.Event] =
@@ -81,9 +79,8 @@ proc main() =
     shutDown: @[]
   )
   let thread: Thread[ExampleServer] = data.runServer()
+  setupClient(data)
   
-  let event: ApplicationEvent = createListenerEvent[AppState, ServerMessage, ClientMessage](data)
-  setupClient(data, startupEvents = @[event])
   joinThread(thread)
   
   data.hub.destroy()
