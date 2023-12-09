@@ -1,8 +1,10 @@
-import std/[macros, macrocache, strformat, strutils]
+import std/[macros, macrocache, strformat, strutils, unicode, sequtils]
 import ./utils
+import ./macroCacheUtils
+import ./communication
 
-const serverRoutes = CacheTable"serverRouteTable"
-const serverMsgTypes = CacheTable"serverMsgTypes"
+const routes = CacheTable"routeTable"
+const msgTypes = CacheTable"msgTypes"
 
 ## TODO: 
 ## 4) Add support for distinct message types
@@ -12,31 +14,32 @@ const serverMsgTypes = CacheTable"serverMsgTypes"
 type Message* = concept m
   m.kind is enum
 
-type RouteName = string
+type RouteName* = string
+type ThreadName* = string
 
-proc kindName(x: RouteName): string = x.string & "Kind"
+proc variantName*(x: ThreadName): string = x.capitalize() & "Message"
+proc enumName*(x: ThreadName): string = x.capitalize() & "Kinds"
+proc firstParamName*(node: NimNode): string =
+  node.assertKind(@[nnkProcDef])
+  let firstParam = node.params[1]
+  firstParam.assertKind(nnkIdentDefs)
+  return $firstParam[0]
+
+proc firstParamType*(node: NimNode): string =
+  node.assertKind(@[nnkProcDef])
+  let firstParam = node.params[1]
+  firstParam.assertKind(nnkIdentDefs)
+  return $firstParam[1]
+
+proc kindName(x: RouteName): string = x.capitalize() & "Kind"
+proc kindName*(node: NimNode): string =
+  node.assertKind(@[nnkProcDef])
+  return node.firstParamType & "Kind"
+
 proc fieldName(x: RouteName): string = x.string & "Msg"
-
-proc addRoute*(routes: CacheTable, procDef: NimNode) =
-  ## Stores a proc definition as "route" in `routes`.
-  ## The proc's name is used as name of the route.
-  procDef.assertKind(nnkProcDef, "You need a proc definition to add a route in order to extract the first parameter")
-    
-  let procName: string = $procDef.name
-  if routes.hasKey(procName):
-    let otherProcLine: string = routes[procName].lineInfo
-    error(
-      fmt"""'{procName}' could not be registered. 
-        A proc with that name was already registered!
-        Previous proc declaration here: {otherProcLine}
-      """.dedent(8), 
-      procDef
-    )
-  
-  let firstParam = procDef.params[1]
-  let firstParamType = firstParam[1]
-  echo "Dudu: ", firstParamType.treeRepr
-  routes[procName] = firstParamType
+proc fieldName*(node: NimNode): string =
+  node.assertKind(@[nnkProcDef])
+  return node.firstParamType.normalize() & "Msg"
 
 proc getProcDef(node: NimNode): NimNode =
   ## Utility proc. Tries to extract a procDef from `node`.
@@ -51,35 +54,13 @@ proc getProcDef(node: NimNode): NimNode =
 
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
-
-macro serverMessage*(input: typed): untyped =
-  input.expectKind(@[nnkStmtList], "Needs to be a statement list with type section")
-  let typeSection = input[0]
-  typeSection.expectKind(@[nnkTypeSection], "Needs to be a type section")
-  let typeDef = typeSection[0]
-  typeDef.expectKind(@[nnkTypeDef], "Needs to be a typedef")
-  
-  let typeName = $typeDef[0]
-  if serverMsgTypes.hasKey(typeName):
-    let otherTypeLine: string = serverMsgTypes[typeName].lineInfo
-    error(
-      fmt"""'{typeName}' could not be registered as a server message type. 
-        A type with that name was already registered!
-        Previous type declaration here: {otherTypeLine}
-      """.dedent(8), 
-      typeDef
-    )
-  
-  serverMsgTypes[typeName] = typeDef[0]
-  return input
-
-macro serverRoute*(input: typed): untyped =
+macro route*(name: string, input: typed): untyped =
   ## Registers a proc for handling messages as "server route" with appster.
   ## This is used for code-generation with `generate()`
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
-      Tried to register `{input.repr.strip()}` as serverRoute with unsupported syntax!
+      Tried to register `{strutils.strip(input.repr)}` as serverRoute with unsupported syntax!
       The following are supported:
         - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.serverRoute.\}"}
         - serverRoute(myProc)
@@ -87,44 +68,56 @@ macro serverRoute*(input: typed): untyped =
   )
   
   let procDef = input.getProcDef()
-  serverRoutes.addRoute(procDef)
+  input.expectKind(nnkProcDef)
+  addRoute($name, procDef)
   
   if input.isDefiningProc():
     return input ## Necessary so that the defined proc does not "disappear"
 
 
-proc asEnum(routes: CacheTable, enumName: string): NimNode =
+proc asEnum(name: ThreadName): NimNode =
   ## Generates an enum type `enumName` with all keys in `routes` turned into enum values.
-  var enumFields: seq[NimNode] = @[]
-  for routeName, _ in routes:
-    enumFields.add(ident(routeName.kindName))
+  let routes = name.getRoutes()
+  let hasRoutes = routes.len > 0
+  
+  let enumFields: seq[NimNode] = if not hasRoutes:
+      @[ident("none")] # Fallback when no message type is provided
+    else:
+      name.getRoutes().mapIt(ident(it.kindName))
   
   newEnum(
-    name = ident(enumName), 
+    name = ident(name.enumName), 
     fields = enumFields, 
     public = true,
     pure = true
   )
 
-proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode =
+proc asVariant(name: string): NimNode =
   ## Generates an object variant type `typeName` using the enum called `enumName`.
   ## Each variation of the variant has 1 field. 
   ## The type of that field is the message type stored in the NimNode in `routes`.
+  ## Returns a simple object type with no fields if no routes are registered
+  if not name.hasRoutes():
+    let typeName = newIdentNode(name.variantName)
+    return quote do:
+      type `typeName` = object 
 
   let caseNode = nnkRecCase.newTree(
     nnkIdentDefs.newTree(
       newIdentNode("kind"),
-      newIdentNode(enumName),
+      newIdentNode(name.enumName),
       newEmptyNode()
     )
   )
   
-  for routeName, msgTypeName in routes:
+  for handlerProc in name.getRoutes():
+    handlerProc.assertKind(nnkProcDef)
+    
     let branchNode = nnkOfBranch.newTree(
-      newIdentNode(routeName.kindName),
+      newIdentNode(handlerProc.kindName),
       newIdentDefs(
-        newIdentNode(routeName.fieldName),
-        msgTypeName
+        newIdentNode(handlerProc.fieldName),
+        ident(handlerProc.firstParamType)
       )
     )
     
@@ -132,7 +125,7 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
   
   result = nnkTypeSection.newTree(
     nnkTypeDef.newTree(
-      newIdentNode(typeName),
+      newIdentNode(name.variantName),
       newEmptyNode(),
       nnkObjectTy.newTree(
         newEmptyNode(),
@@ -142,7 +135,7 @@ proc asVariant(routes: CacheTable, enumName: string, typeName: string): NimNode 
     )
   )
   
-proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
+proc genMessageRouter(name: string): NimNode =
   ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
@@ -151,7 +144,7 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
   result = newProc(name = ident("routeMessage"))
   
   let msgParamName = "msg"
-  let msgParam = newIdentDefs(ident(msgParamName), ident(msgVariantTypeName))
+  let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
   result.params.add(msgParam)
   
   let hubParam = newIdentDefs(ident("hub"), ident("ChannelHub"))
@@ -161,18 +154,17 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     newDotExpr(ident(msgParamName), ident("kind"))
   )
   
-  for routeName, _ in routes:
-    let fieldName = routeName & "Msg"
+  for handlerProc in name.getRoutes():
     # Generates proc call `<routeName>(<msgParamName>.<fieldName>, hub)`
     let handlerCall = nnkCall.newTree(
-      ident(routeName),
-      newDotExpr(ident(msgParamName), ident(routeName.fieldName)),
+      handlerProc.name,
+      newDotExpr(ident(msgParamName), ident(handlerProc.fieldName)),
       ident("hub")
     )
     
     # Generates `of <routeName>: <handlerCall>`
     let branchNode = nnkOfBranch.newTree(
-      newDotExpr(ident(msgVariantTypeName & "Kind"), ident(routeName & "Kind")),
+      ident(handlerProc.kindName),
       newStmtList(handlerCall)
     )
     
@@ -180,114 +172,42 @@ proc genMessageRouter(routes: CacheTable, msgVariantTypeName: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc genSenderProc(procName: string, msgVariantTypeName: string, routeName: string, msgTypeName: string, hubSenderProc: string): NimNode =
+proc genSenderProc*(name: ThreadName, handlerProc: NimNode): NimNode =
   ## Generates a procedure to send messages to the server via ChannelHub and hiding the object variant.
-  let procNode = newIdentNode(procName)
-  let typeNode = newIdentNode(msgTypeName)
-  let variantTypeNode = newIdentNode(msgVariantTypeName)
-  let kindNode = newIdentNode(routeName.kindName)
-  let fieldNode = newIdentNode(routeName.fieldName)
-  let hubSenderProcNode = newIdentNode(hubSenderProc)
+  let procName = newIdentNode("sendMessage")
+  let msgType = newIdentNode(handlerProc.firstParamType)
+  let variantType = newIdentNode(name.variantName)
+  let msgKind = newIdentNode(handlerProc.kindName)
+  let variantField = newIdentNode(handlerProc.fieldName)
+  let senderProcName = newIdentNode(communication.SEND_PROC_NAME) # This string depends on the name 
   
   quote do:
-    proc `procNode`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `typeNode`): bool =
-      let msgWrapper: `variantTypeNode` = `variantTypeNode`(kind: `kindNode`, `fieldNode`: msg)
-      return hub.`hubSenderProcNode`(msgWrapper)
-      
-proc addTypeCode(
+    proc `procName`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `msgType`): bool =
+      let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
+      return hub.`senderProcName`(msgWrapper)
+
+proc addTypeCode*(
   node: NimNode, 
-  routes: CacheTable, 
-  enumName, typeName: string
+  name: ThreadName, 
 ) =
   ## Adds the various pieces of code that need to be generated to the output
   ## TODO: Clean this up. The idea here is that you need to have something functional even if there are no messages going S => C or C => S
-  let hasRoutes = routes.len() > 0
-  if not hasRoutes:
-    # Fallback, generate empty object type
-    let typeNode = ident(typeName)
-    let emptyObjectType = quote do:
-      type `typeNode` = object
-    
-    node.add(emptyObjectType)
-    return
-    
-  let messageEnum = routes.asEnum(enumName)
+  let hasRoutes = routes.len() > 0    
+  let messageEnum = name.asEnum()
   node.add(messageEnum)
   
-  let messageVariant = routes.asVariant(enumName, typeName)
+  let messageVariant = name.asVariant()
   node.add(messageVariant)
   
-proc addRoutingProc(
-  node: NimNode, 
-  routes: CacheTable, 
-  typeName: string
-) =
-  let routerProc = routes.genMessageRouter(typeName)
-  node.add(routerProc)
-  
-proc addProcCode(
-  node: NimNode,
-  targetRoutes: CacheTable,
-  variantTypeName, procName, hubSendProc: string, 
-) =
-  for routeName, msgType in targetRoutes:
-    echo "Das: ", msgType.repr
-    let sendProcDef = genSenderProc(
-      procName, 
-      variantTypeName, 
-      routeName, 
-      $msgType, 
-      hubSendProc
-    )
-    node.add(sendProcDef)
-
-macro generate*(send2ServerName: string = "sendToServer", send2ClientName: string = "sendToClient"): untyped =
+macro generate*(name: ThreadName): untyped =
+  let name = $name
   result = newStmtList()
-  let fromClientMsg = "ClientMessage"
-  let fromServerMsg = "ServerMessage"
   
-  ## Add enum "ServerMessageKind" and object variant "ServerMessage"
-  ## for servers to send messages to clients 
-  ## This is client <= server. ServerMessages come from the Server
-  result.addTypeCode(
-    serverMsgTypes, 
-    fromServerMsg.kindName, 
-    fromServerMsg
-  )
+  result.addTypeCode(name)
+  result.add(name.genMessageRouter())
   
-  ## Add enum "ClientMessageKind" and object variant "ClientMessage" types 
-  ## for servers to send messages to client.
-  ## This is client => server. ClientMessages come from the Client
-  result.addTypeCode(
-    serverRoutes, 
-    fromClientMsg.kindName, 
-    fromClientMsg
-  )
-  
-  ## Add routing proc for ClientMessages in the server
-  ## This is for client => server.
-  result.addRoutingProc(
-    serverRoutes,
-    fromClientMsg
-  )
-  
-  ## Add sender procs for clients to send messages to the server.
-  ## This is for client <= server. 
-  result.addProcCode(
-    serverMsgTypes,
-    fromServerMsg,
-    $send2ClientName,
-    "sendMsgToClient"
-  )
-  
-  ## Add sender procs for server to send messages to the client.
-  ## This is for client => server. 
-  result.addProcCode(
-    serverRoutes,
-    fromClientMsg,
-    $send2ServerName,
-    "sendMsgToServer"
-  )
+  for handlerProc in name.getRoutes():
+    result.add(genSenderProc(name, handlerProc))
 
   when defined(appsterDebug):
     echo result.repr

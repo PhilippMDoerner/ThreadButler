@@ -1,24 +1,23 @@
 import appster
 import std/[sugar, logging]
 
-serverMessage:
-  type S2CMessage = object
-
-type C2SMessage = object
-  text: string
-
+type S2CMessage = distinct string
+type C2SMessage = distinct string
 type KillMessage = object
-  
-proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
-  echo "On Server: Handling msg: ", msg.text
 
-proc triggerShutdown(msg: KillMessage, hub: auto) {.serverRoute.} =
+addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+
+proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.route: "server".} = 
+  echo "On Server: Handling msg: ", msg.string
+
+proc triggerShutdown(msg: KillMessage, hub: auto) {.route: "server".} =
   shutdownServer()
 
-generate()
+generate("server")
+generate("client")
 
 proc getStartupEvents(): seq[Event] =
-  let loggerEvent = initEvent(() => addHandler(newConsoleLogger()))
+  let loggerEvent = initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] ")))
   result.add(loggerEvent)
 
   let helloWorldEvent = initEvent(() => debug "Server startin up!")
@@ -30,7 +29,7 @@ proc getShutdownEvents(): seq[Event] =
 
 proc main() =
   var channels = new(ChannelHub[ServerMessage, ClientMessage])
-  let sleepMs = 0
+  let sleepMs = 10
   var data: ServerData[ServerMessage, ClientMessage] = ServerData[ServerMessage, ClientMessage](
     hub: channels,
     sleepMs: sleepMs,
@@ -46,12 +45,12 @@ proc main() =
   while true:
     let terminalInput = readLine(stdin) # This is blocking, so this Thread doesn't run through unnecessary while-loop iterations unlike the receiver thread
     if terminalInput == "kill":
-      discard channels.sendToServer(KillMessage())
+      discard channels.sendMessage(KillMessage())
       break
     
     else:
-      let msg = C2SMessage(text: terminalInput)
-      discard channels.sendToServer(msg)
+      let msg = terminalInput.C2SMessage
+      discard channels.sendMessage(msg)
 
   joinThread(thread)
 

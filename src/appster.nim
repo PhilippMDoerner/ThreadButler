@@ -29,7 +29,7 @@ proc runServer*[SMsg, CMsg](
     data.startUp.execEvents()
     
     while true:
-      let msg = data.hub.readClientMsg()
+      let msg: Option[SMsg] = data.hub.readMsg(SMSg)
       if msg.isSome():
         try:
           routeMessage(msg.get(), data.hub)

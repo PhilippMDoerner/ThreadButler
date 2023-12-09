@@ -3,19 +3,21 @@ import pkg/owlkettle/bindings/gtk
 import ../communication
 import ../../appster
 import std/[strformat, options, re, strutils]
+import ./owlkettleGen
+
+export owlGenerate
 
 proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
   app: OwlkettleApp, 
   data: ServerData[SMsg, CMsg]
 ) =  
-  mixin handleMessage
+  mixin routeMessage
   ## Adds a callback function to the GTK app that checks every 5 ms whether the 
   ## server sent a new message. Triggers a UI update if that is the case.
   proc listener(): bool =
-    let msg = data.hub.readServerMsg()
+    let msg = data.hub.readMsg(CMsg)
     if msg.isSome():
-      app.msg = msg.get()
-      handleMessage(app, msg.get())
+      routeMessage(msg.get(), data.hub, app)
       discard app.redraw()
     
     const KEEP_LISTENER_ACTIVE = true
@@ -23,9 +25,9 @@ proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
 
   discard addGlobalTimeout(data.sleepMs, listener)
 
-proc sendMessage*[SMsg, CMsg](serverData: ServerData[SMsg, CMsg], msg: auto): bool =
-  mixin sendToServer
-  serverData.hub.sendToServer(msg)
+# proc addClientSender*[SMsg, CMsg](data: ServerData[SMsg, CMsg]) =
+#   proc sender(): bool =
+    
 
 template createListenerEvent*(data: typed, stateType: typedesc): ApplicationEvent =
   ## Creates an Owlkettle.ApplicationEvent when starting up the application.
@@ -57,3 +59,6 @@ template withServer*(
   
   joinThread(thread)
   data.hub.destroy()
+  
+template sendMessageToServer*(server: ServerData[typed, typed], msg: auto): bool =
+  server.hub.sendMessage(msg)
