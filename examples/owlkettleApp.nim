@@ -2,46 +2,50 @@ import appster
 import appster/integration/owlkettleUtils
 import owlkettle
 import owlkettle/adw
-import std/[sugar, options, logging]
+import std/[sugar, options, logging, strformat]
 
 addHandler(newConsoleLogger())
 
 ## Appster Type Setup
 
 serverMessage:
-  type S2CMessage = object
-    text: string
+  type S2CMessage = distinct string
 
 type C2SMessage = object
   text: string
 
 proc handleC2SMessage(msg: C2SMessage, hub: auto) {.serverRoute.} = 
   echo "On Server: Handling msg: ", msg.text
-  discard hub.sendToClient(S2CMessage(text: "Response!"))
+  discard hub.sendToClient(S2CMessage(fmt("Response to: {msg.text}")))
 
 generate()
 
 type ExampleServer = ServerData[ServerMessage, ClientMessage]
-## 
-
+type Handler = proc(state: WidgetState, msg: ServerMessage)
 viewable App:
   server: ExampleServer
   msg: ServerMessage
-  
-  hooks:
-    afterBuild:
-      addServerListener(state, state.server)
+  inputText: string
+  receivedMessages: seq[string]
+  proc messageHandler(state: AppState, msg: ServerMessage) {.closure.}
+
+proc handleMessage(state: AppState, msg: ServerMessage) = 
+  case msg.kind:
+  of S2CMessageKind:
+      state.receivedMessages.add(msg.S2CMessageMsg.string)
+  else:
+    raise newException(ValueError, fmt"Unhandled kind: {msg.kind}")
+
+proc send(app: AppState) =
+  let msg = C2SMessage(text: app.inputText)
+  discard app.server.sendMessage(msg)
 
 method view(app: AppState): Widget =
-  let backendMsg: Option[string] = case app.msg.kind:
-    of S2CMessageKind: some(app.msg.S2CMessageMsg.text)
-    else: none(string)
-  
   result = gui:
     Window:
       defaultSize = (500, 150)
       title = "Client Server Example"
-      
+
       Box(orient = OrientY, margin = 12, spacing = 6):
         Button {.hAlign: AlignCenter, vAlign: AlignCenter.}:
           Label(text = "Click me")
@@ -51,15 +55,8 @@ method view(app: AppState): Widget =
             discard app.server.sendMessage(msg)
             
         Label(text = "Message sent by Backend: ")
-        if backendMsg.isSome():
-          Label(text = backendMsg.get())
-
-proc setupClient(server: ExampleServer) =
-  let listener = createListenerEvent(server, AppState)
-  adw.brew(
-    gui(App(server = server)),
-    startupEvents = [listener]
-  )
+        for msg in app.receivedMessages:
+          Label(text = msg)
 
 proc getServerStartupEvents(): seq[events.Event] =
   let loggerEvent = initEvent(() => addHandler(newConsoleLogger()))
@@ -73,14 +70,22 @@ proc getServerStartupEvents(): seq[events.Event] =
 proc main() =
   # Server
 
-  var data: ServerData[ServerMessage, ClientMessage] = initServer(
+  var server: ServerData[ServerMessage, ClientMessage] = initServer(
     startupEvents = getServerStartupEvents(),
     shutdownEvents = @[],
     sleepInMs = 0
   )
   
-  withServer(data):
-    setupClient(data)
+  withServer(server):
+    let listener = createListenerEvent(server, AppState)
+    var appWidget = gui(App(
+      server = server
+    ))
+    appWidget.messageHandler = owlkettle.Event[proc(state: AppState, msg: ServerMessage) {.closure.}](callback: handleMessage)
 
+    adw.brew(
+      appWidget,
+      startupEvents = [listener]
+    )
 
 main()
