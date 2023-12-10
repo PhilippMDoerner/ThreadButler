@@ -3,9 +3,9 @@ import std/[sugar, logging, options, strformat]
 
 registerTypeFor("client"):
   type Response = distinct string
+
 registerTypeFor("server"):
   type Request = distinct string
-registerTypeFor("server"):
   type KillMessage = object
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
@@ -35,9 +35,7 @@ proc main() =
     shutDown: @[initEvent(() => debug "Server shutting down!")]
   )
   
-  let thread: Thread[
-    ServerData[ServerMessage, ClientMessage]
-  ] = data.runServer()
+  let thread: Thread[ServerData[ServerMessage, ClientMessage]] = data.runServer()
 
   echo "Type in a message to send to the Backend!"
   while true:
