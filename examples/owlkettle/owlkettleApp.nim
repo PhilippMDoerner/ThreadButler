@@ -10,7 +10,7 @@ addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 # ## Appster Type Setup
 proc handleResponse(msg: Response, hub: ChannelHub, state: WidgetState) {.route: "client".}
 
-owlGenerate("client", "App")
+owlGenerateAll("client")
 
 proc sendAppMsg(app: auto) =
   discard app.server.sendMessageToServer(app.inputText.Request)

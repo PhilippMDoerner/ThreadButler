@@ -197,9 +197,8 @@ proc addTypeCode*(
   
   let messageVariant = name.asVariant()
   node.add(messageVariant)
-  
-macro generate*(name: ThreadName): untyped =
-  let name = $name
+
+proc generateCode*(name: ThreadName): NimNode =
   result = newStmtList()
   
   result.addTypeCode(name)
@@ -207,6 +206,11 @@ macro generate*(name: ThreadName): untyped =
   
   for handlerProc in name.getRoutes():
     result.add(genSenderProc(name, handlerProc))
+
+macro generate*(name: ThreadName): untyped =
+  let name = $name
+
+  result = name.generateCode()
 
   when defined(appsterDebug):
     echo result.repr

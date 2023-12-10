@@ -5,14 +5,8 @@ import std/[logging, strformat, sugar]
 type Response* = distinct string
 type Request* = distinct string
 
-# Server
-proc handleRequest(msg: Request, hub: auto) {.route: "server".} = 
-  echo "On Server: Handling msg: ", msg.string
+proc handleRequest(msg: Request, hub: ChannelHub) {.route: "server".} = 
   discard hub.sendMessage(Response(fmt("Response to: {msg.string}")))
-
-generate("server")
-
-# Client
 
 
 proc initServerData*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  

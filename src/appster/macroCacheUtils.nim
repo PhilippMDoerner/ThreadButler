@@ -1,4 +1,4 @@
-import std/[macros, macrocache]
+import std/[macros, macrocache, sequtils]
 import ./utils
 
 const routes = CacheTable"routeTable" ##
@@ -27,6 +27,10 @@ proc getRoutes*(name: string): seq[NimNode] =
     
 proc hasRoutes*(name: string): bool =
   name.getRoutes().len > 0
+
+proc getRegisteredThreadnames*(): seq[string] =
+  for key, _ in routes:
+    result.add(key)
 
 proc debugContent*() =
   echo "Debug"
