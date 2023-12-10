@@ -1,31 +1,26 @@
 import appster
-import std/[sugar, logging]
+import std/[sugar, logging, options, strformat]
 
-type S2CMessage = distinct string
-type C2SMessage = distinct string
-type KillMessage = object
+registerTypeFor("client"):
+  type Response = distinct string
+registerTypeFor("server"):
+  type Request = distinct string
+registerTypeFor("server"):
+  type KillMessage = object
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
-proc handleClientToServerMessage(msg: C2SMessage, hub: auto) {.route: "server".} = 
-  echo "On Server: Handling msg: ", msg.string
+proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
+  discard hub.sendMessage(Response("Handled: " & msg.string))
 
-proc triggerShutdown(msg: KillMessage, hub: auto) {.route: "server".} =
+proc triggerShutdown(msg: KillMessage, hub: auto) {.registerRouteFor: "server".} =
   shutdownServer()
+
+proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: "client".} =
+  echo "On Client: ", msg.string
 
 generate("server")
 generate("client")
-
-proc getStartupEvents(): seq[Event] =
-  let loggerEvent = initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] ")))
-  result.add(loggerEvent)
-
-  let helloWorldEvent = initEvent(() => debug "Server startin up!")
-  result.add(helloWorldEvent)
-  
-proc getShutdownEvents(): seq[Event] =
-  let byebyeWorldEvent = initEvent(() => debug "Server shutting down!")
-  result.add(byebyeWorldEvent)
 
 proc main() =
   var channels = new(ChannelHub[ServerMessage, ClientMessage])
@@ -33,8 +28,11 @@ proc main() =
   var data: ServerData[ServerMessage, ClientMessage] = ServerData[ServerMessage, ClientMessage](
     hub: channels,
     sleepMs: sleepMs,
-    startUp: getStartupEvents(),
-    shutDown: getShutdownEvents()
+    startUp: @[
+      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
+      initEvent(() => debug "Server startin up!")
+    ],
+    shutDown: @[initEvent(() => debug "Server shutting down!")]
   )
   
   let thread: Thread[
@@ -43,14 +41,18 @@ proc main() =
 
   echo "Type in a message to send to the Backend!"
   while true:
-    let terminalInput = readLine(stdin) # This is blocking, so this Thread doesn't run through unnecessary while-loop iterations unlike the receiver thread
+    let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
     if terminalInput == "kill":
       discard channels.sendMessage(KillMessage())
       break
     
-    else:
-      let msg = terminalInput.C2SMessage
+    elif terminalInput.len() > 0:
+      let msg = terminalInput.Request
       discard channels.sendMessage(msg)
+    
+    let response: Option[ClientMessage] = channels.readMsg(ClientMessage)
+    if response.isSome():
+      routeMessage(response.get(), channels)
 
   joinThread(thread)
 
