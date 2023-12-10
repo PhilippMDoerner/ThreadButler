@@ -125,7 +125,7 @@ proc asVariant(name: string): NimNode =
   
   result = nnkTypeSection.newTree(
     nnkTypeDef.newTree(
-      newIdentNode(name.variantName),
+      postfix(newIdentNode(name.variantName), "*"),
       newEmptyNode(),
       nnkObjectTy.newTree(
         newEmptyNode(),
@@ -141,7 +141,7 @@ proc genMessageRouter(name: string): NimNode =
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
   let returnTyp = newEmptyNode()
-  result = newProc(name = ident("routeMessage"))
+  result = newProc(name = postfix(ident("routeMessage"), "*"))
   
   let msgParamName = "msg"
   let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
@@ -182,7 +182,7 @@ proc genSenderProc*(name: ThreadName, handlerProc: NimNode): NimNode =
   let senderProcName = newIdentNode(communication.SEND_PROC_NAME) # This string depends on the name 
   
   quote do:
-    proc `procName`[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `msgType`): bool =
+    proc `procName`*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `msgType`): bool =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
       return hub.`senderProcName`(msgWrapper)
 
@@ -191,7 +191,6 @@ proc addTypeCode*(
   name: ThreadName, 
 ) =
   ## Adds the various pieces of code that need to be generated to the output
-  ## TODO: Clean this up. The idea here is that you need to have something functional even if there are no messages going S => C or C => S
   let hasRoutes = routes.len() > 0    
   let messageEnum = name.asEnum()
   node.add(messageEnum)

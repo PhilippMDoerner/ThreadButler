@@ -1,12 +1,10 @@
-import std/[macros, macrocache, strformat, strutils, tables]
+import std/[macros, macrocache]
 import ./utils
 
 const routes = CacheTable"routeTable" ##
 ## Stores a list of procs for a given "threadServer" based on a given name
 ## The procs are stored in a StatementList for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]
-
-const msgTypes = CacheTable"msgTypes"
 
 proc addRoute*(name: string, procDef: NimNode) =
   ## Stores a proc definition as "route" in `routes`.

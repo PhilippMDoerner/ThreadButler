@@ -1,9 +1,8 @@
+import std/[options]
 import pkg/owlkettle
-import pkg/owlkettle/bindings/gtk
+import ./owlkettleGen
 import ../communication
 import ../../appster
-import std/[strformat, options, re, strutils]
-import ./owlkettleGen
 
 export owlGenerate
 

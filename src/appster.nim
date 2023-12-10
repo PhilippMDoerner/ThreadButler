@@ -1,4 +1,4 @@
-import std/[options, os, logging]
+import std/[options, os]
 import ./appster/[typegen, communication, events, log]
 
 export typegen

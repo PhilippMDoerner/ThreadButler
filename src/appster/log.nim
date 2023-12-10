@@ -1,4 +1,4 @@
-import std/[strutils, strformat, logging]
+import std/[strutils, logging]
 
 const APPSTER_LOG_LEVEL* {.strdefine: "appsterloglevel".}: string = "lvlerror"
 
