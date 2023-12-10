@@ -2,7 +2,7 @@ import ../typegen
 import std/[macros]
 import ../macroCacheUtils
 
-proc genOwlRouter(name: ThreadName): NimNode =
+proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
@@ -19,7 +19,7 @@ proc genOwlRouter(name: ThreadName): NimNode =
   result.params.add(hubParam)
   
   let stateParamName = "state"
-  let widgetStateParam = newIdentDefs(ident(stateParamName), ident("WidgetState"))
+  let widgetStateParam = newIdentDefs(ident(stateParamName), ident(widgetName & "State"))
   result.params.add(widgetStateParam)
   
   let caseStmt = nnkCaseStmt.newTree(
@@ -61,15 +61,16 @@ macro owlSetup*(): typed =
       
   when defined(appsterDebug):
     echo result.repr
-    
-macro routingSetup*(clientThreadName: ThreadName): typed =
+
+macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed): typed =
   let clientThreadName = $clientThreadName
+  let widgetName = $widgetNode
   result = newStmtList()
   
   for threadName in getRegisteredThreadnames():
     let isClientThread: bool = threadName == clientThreadName
     let routingProc: NimNode = if isClientThread:
-        threadName.genOwlRouter()
+        threadName.genOwlRouter(widgetName)
       else:
         threadName.genMessageRouter()
     result.add(routingProc)

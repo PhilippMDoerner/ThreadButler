@@ -58,12 +58,11 @@ method view(app: AppState): Widget =
         for msg in app.receivedMessages:
           Label(text = msg) {.hAlign: AlignStart.}
 
-proc handleResponse(msg: Response, hub: ChannelHub, state: WidgetState) {.registerRouteFor: "client".} =
+proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) {.registerRouteFor: "client".} =
   echo "On Client: Handling msg: ", msg.string
-  let state = state.AppState
   state.receivedMessages.add(msg.string)
 
-routingSetup("client")
+routingSetup("client", App)
 
 ## Main
 proc main() =
