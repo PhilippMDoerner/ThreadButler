@@ -4,7 +4,7 @@ import ./owlkettleGen
 import ../communication
 import ../../appster
 
-export owlGenerate, owlGenerateAll
+export owlSetup, routingSetup
 
 proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
   app: OwlkettleApp, 

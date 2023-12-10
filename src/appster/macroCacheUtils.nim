@@ -13,11 +13,11 @@ const routes = CacheTable"routeTable" ##
 ## The procs are stored in a StatementList-NimNode for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]
 
-proc typeName(node: NimNode): string =
+proc typeName*(node: NimNode): string =
   node.assertKind(nnkTypeDef)
   return $node[0]
 
-proc firstParamType(node: NimNode): NimNode =
+proc firstParamType*(node: NimNode): NimNode =
   node.assertKind(nnkProcDef)
   let firstParam = node.params[1]
   let typeNode = firstParam[1]
@@ -93,9 +93,17 @@ proc addRoute*(name: ThreadName, procDef: NimNode) =
 proc hasRoutes*(name: string): bool =
   name.getRoutes().len > 0
 
+proc hasTypes*(name: string): bool =
+  name.getTypes().len > 0
+
 proc getRegisteredThreadnames*(): seq[string] =
   for key, _ in routes:
-    result.add(key)
+    if key notin result:
+      result.add(key)
+
+  for key, _ in types:
+    if key notin result:
+      result.add(key)
 
 proc debugContent*() =
   echo "Debug"

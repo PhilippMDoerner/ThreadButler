@@ -18,9 +18,7 @@ import std/[options, logging, strformat]
 ##    Note that this should also be validated. So when registering a handler you need to validate that a type was also registered for that threadname
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
-proc handleResponse(msg: Response, hub: ChannelHub, state: WidgetState) {.registerRouteFor: "client".}
-
-owlGenerateAll("client")
+owlSetup()
 
 proc sendAppMsg(app: auto) =
   discard app.server.sendMessageToServer(app.inputText.Request)
@@ -60,11 +58,12 @@ method view(app: AppState): Widget =
         for msg in app.receivedMessages:
           Label(text = msg) {.hAlign: AlignStart.}
 
-proc handleResponse(msg: Response, hub: ChannelHub, state: WidgetState) =
+proc handleResponse(msg: Response, hub: ChannelHub, state: WidgetState) {.registerRouteFor: "client".} =
   echo "On Client: Handling msg: ", msg.string
   let state = state.AppState
   state.receivedMessages.add(msg.string)
 
+routingSetup("client")
 
 ## Main
 proc main() =

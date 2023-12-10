@@ -24,21 +24,15 @@ proc firstParamName*(node: NimNode): string =
   firstParam.assertKind(nnkIdentDefs)
   return $firstParam[0]
 
-proc firstParamType*(node: NimNode): string =
-  node.assertKind(@[nnkProcDef])
-  let firstParam = node.params[1]
-  firstParam.assertKind(nnkIdentDefs)
-  return $firstParam[1]
-
 proc kindName(x: RouteName): string = x.capitalize() & "Kind"
 proc kindName*(node: NimNode): string =
-  node.assertKind(@[nnkProcDef])
-  return node.firstParamType & "Kind"
+  node.assertKind(@[nnkTypeDef])
+  return node.typeName & "Kind"
 
-proc fieldName(x: RouteName): string = x.string & "Msg"
+proc fieldName(x: RouteName): string = normalize(x.string) & "Msg"
 proc fieldName*(node: NimNode): string =
-  node.assertKind(@[nnkProcDef])
-  return node.firstParamType.normalize() & "Msg"
+  node.assertKind(@[nnkTypeDef])
+  return fieldName(node.typeName())
 
 proc getProcDef(node: NimNode): NimNode =
   ## Utility proc. Tries to extract a procDef from `node`.
@@ -72,6 +66,7 @@ macro registerRouteFor*(name: string, input: typed): untyped =
   addRoute(name, procDef)
   
   if input.isDefiningProc():
+    echo "Returning: ", input.repr
     return input ## Necessary so that the defined proc does not "disappear"
 
 proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
@@ -116,15 +111,15 @@ macro registerTypeFor*(name: ThreadName, input: typed): typed =
 
 proc asEnum(name: ThreadName): NimNode =
   ## Generates an enum type `enumName` with all keys in `routes` turned into enum values.
-  let routes = name.getRoutes()
-  let hasRoutes = routes.len > 0
+  let types = name.getTypes()
+  let hasTypes = types.len > 0
   
-  let enumFields: seq[NimNode] = if not hasRoutes:
+  let enumFields: seq[NimNode] = if not hasTypes:
       @[ident("none")] # Fallback when no message type is provided
     else:
-      name.getRoutes().mapIt(ident(it.kindName))
+      name.getTypes().mapIt(ident(it.kindName))
   
-  newEnum(
+  return newEnum(
     name = ident(name.enumName), 
     fields = enumFields, 
     public = true,
@@ -136,7 +131,7 @@ proc asVariant(name: string): NimNode =
   ## Each variation of the variant has 1 field. 
   ## The type of that field is the message type stored in the NimNode in `routes`.
   ## Returns a simple object type with no fields if no routes are registered
-  if not name.hasRoutes():
+  if not name.hasTypes():
     let typeName = newIdentNode(name.variantName)
     return quote do:
       type `typeName` = object 
@@ -149,14 +144,15 @@ proc asVariant(name: string): NimNode =
     )
   )
   
-  for handlerProc in name.getRoutes():
-    handlerProc.assertKind(nnkProcDef)
-    
+  for typ in name.getTypes():
+    typ.assertKind(nnkTypeDef)
     let branchNode = nnkOfBranch.newTree(
-      newIdentNode(handlerProc.kindName),
-      newIdentDefs(
-        newIdentNode(handlerProc.fieldName),
-        ident(handlerProc.firstParamType)
+      newIdentNode(typ.kindName),
+      nnkRecList.newTree(
+        newIdentDefs(
+          newIdentNode(typ.fieldName),
+          ident(typ.typeName)
+        ) 
       )
     )
     
@@ -174,7 +170,7 @@ proc asVariant(name: string): NimNode =
     )
   )
   
-proc genMessageRouter(name: string): NimNode =
+proc genMessageRouter*(name: string): NimNode =
   ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
@@ -195,15 +191,16 @@ proc genMessageRouter(name: string): NimNode =
   
   for handlerProc in name.getRoutes():
     # Generates proc call `<routeName>(<msgParamName>.<fieldName>, hub)`
+    let firstParamType = handlerProc.firstParamType
     let handlerCall = nnkCall.newTree(
       handlerProc.name,
-      newDotExpr(ident(msgParamName), ident(handlerProc.fieldName)),
+      newDotExpr(ident(msgParamName), ident(firstParamType.fieldName)),
       ident("hub")
     )
     
     # Generates `of <routeName>: <handlerCall>`
     let branchNode = nnkOfBranch.newTree(
-      ident(handlerProc.kindName),
+      ident(firstParamType.kindName),
       newStmtList(handlerCall)
     )
     
@@ -211,13 +208,15 @@ proc genMessageRouter(name: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc genSenderProc*(name: ThreadName, handlerProc: NimNode): NimNode =
+proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
   ## Generates a procedure to send messages to the server via ChannelHub and hiding the object variant.
+  typ.assertKind(nnkTypeDef)
+  
   let procName = newIdentNode("sendMessage")
-  let msgType = newIdentNode(handlerProc.firstParamType)
+  let msgType = newIdentNode(typ.typeName)
   let variantType = newIdentNode(name.variantName)
-  let msgKind = newIdentNode(handlerProc.kindName)
-  let variantField = newIdentNode(handlerProc.fieldName)
+  let msgKind = newIdentNode(typ.kindName)
+  let variantField = newIdentNode(typ.fieldName)
   let senderProcName = newIdentNode(communication.SEND_PROC_NAME) # This string depends on the name 
   
   quote do:
@@ -230,7 +229,6 @@ proc addTypeCode*(
   name: ThreadName, 
 ) =
   ## Adds the various pieces of code that need to be generated to the output
-  let hasRoutes = routes.len() > 0    
   let messageEnum = name.asEnum()
   node.add(messageEnum)
   
@@ -243,8 +241,8 @@ proc generateCode*(name: ThreadName): NimNode =
   result.addTypeCode(name)
   result.add(name.genMessageRouter())
   
-  for handlerProc in name.getRoutes():
-    result.add(genSenderProc(name, handlerProc))
+  for typ in name.getTypes():
+    result.add(genSenderProc(name, typ))
 
 macro generate*(name: ThreadName): untyped =
   let name = $name

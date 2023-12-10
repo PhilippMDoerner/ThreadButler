@@ -5,11 +5,12 @@ import std/[logging, strformat, sugar]
 registerTypeFor("client"):
   type Response* = distinct string
   
-type Request* = distinct string
-registerTypeFor("server", Request)
+registerTypeFor("server"):
+  type Request* = distinct string
 
-proc handleRequest(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
-  discard hub.sendMessage(Response(fmt("Response to: {msg.string}")))
+proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
+  let resp = Response(fmt("Response to: {msg.string}"))
+  discard hub.sendMessage(resp)
 
 
 proc initServerData*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  
