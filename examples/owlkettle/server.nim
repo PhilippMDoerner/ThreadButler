@@ -2,10 +2,13 @@ import appster
 import appster/integration/owlkettleUtils
 import std/[logging, strformat, sugar]
 
-type Response* = distinct string
+registerTypeFor("client"):
+  type Response* = distinct string
+  
 type Request* = distinct string
+registerTypeFor("server", Request)
 
-proc handleRequest(msg: Request, hub: ChannelHub) {.route: "server".} = 
+proc handleRequest(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
   discard hub.sendMessage(Response(fmt("Response to: {msg.string}")))
 
 

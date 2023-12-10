@@ -15,7 +15,6 @@ type Message* = concept m
   m.kind is enum
 
 type RouteName* = string
-type ThreadName* = string
 
 proc variantName*(x: ThreadName): string = x.capitalize() & "Message"
 proc enumName*(x: ThreadName): string = x.capitalize() & "Kinds"
@@ -54,9 +53,10 @@ proc getProcDef(node: NimNode): NimNode =
 
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
-macro route*(name: string, input: typed): untyped =
+macro registerRouteFor*(name: string, input: typed): untyped =
   ## Registers a proc for handling messages as "server route" with appster.
   ## This is used for code-generation with `generate()`
+  let name = $name
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
@@ -69,11 +69,50 @@ macro route*(name: string, input: typed): untyped =
   
   let procDef = input.getProcDef()
   input.expectKind(nnkProcDef)
-  addRoute($name, procDef)
+  addRoute(name, procDef)
   
   if input.isDefiningProc():
     return input ## Necessary so that the defined proc does not "disappear"
 
+proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
+
+macro registerTypeFor*(name: ThreadName, input: typed): typed =
+  ## Registers a type of a message for a given thread with appster.
+  ## This is used for code-generation with `generate()`
+  let name = $name
+  # input.expectKind(
+  #   @[nnkProcDef, nnkSym], 
+  #   fmt"""
+  #     Tried to register `{strutils.strip(input.repr)}` as serverRoute with unsupported syntax!
+  #     The following are supported:
+  #       - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.serverRoute.\}"}
+  #       - serverRoute(myProc)
+  #   """.dedent(6)
+  # )
+  
+  case input.kind:
+  of nnkSym:
+    let typeDef = input.getImpl()
+    typeDef.assertKind(nnkTypeDef)
+    name.addType(typeDef)
+  of nnkStmtList:
+    var typeDefs: seq[NimNode] = @[]
+    for node in input:
+      case node.kind:
+        of nnkTypeDef:
+          name.addType(node)
+        of nnkTypeSection:
+          for subNode in node:
+            subNode.assertKind(nnkTypeDef)
+            name.addType(subNode)
+        else:
+          error(fmt"'typ' macro does not support inner node of kind '{node.kind}'")
+  else:
+    error(fmt"'typ' macro does not support kind '{input.kind}'")
+
+  
+  if input.isDefiningType(): 
+    return input  ## Necessary so that the defined type does not "disappear"
 
 proc asEnum(name: ThreadName): NimNode =
   ## Generates an enum type `enumName` with all keys in `routes` turned into enum values.
