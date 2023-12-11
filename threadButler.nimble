@@ -2,7 +2,7 @@
 
 version       = "0.1.0"
 author        = "Philipp Doerner"
-description   = "A simple application server for applications to offload their heavy computation to."
+description   = "Use threads as if they were servers/microservices to enable multi-threading with a simple mental model."
 license       = "MIT"
 srcDir        = "src"
 

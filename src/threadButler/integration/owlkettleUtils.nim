@@ -2,7 +2,7 @@ import std/[options]
 import pkg/owlkettle
 import ./owlkettleGen
 import ../communication
-import ../../appster
+import ../../threadButler
 
 export owlSetup, routingSetup
 

@@ -1,5 +1,5 @@
-import appster
-import appster/integration/owlkettleUtils
+import threadButler
+import threadButler/integration/owlkettleUtils
 import std/[logging, strformat, sugar]
 
 registerTypeFor("client"):

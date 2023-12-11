@@ -48,7 +48,7 @@ proc getProcDef(node: NimNode): NimNode =
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
 macro registerRouteFor*(name: string, input: typed): untyped =
-  ## Registers a proc for handling messages as "server route" with appster.
+  ## Registers a proc for handling messages as "server route" with threadButler.
   ## This is used for code-generation with `generate()`
   let name = $name
   input.expectKind(
@@ -72,7 +72,7 @@ macro registerRouteFor*(name: string, input: typed): untyped =
 proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
 
 macro registerTypeFor*(name: ThreadName, input: typed): typed =
-  ## Registers a type of a message for a given thread with appster.
+  ## Registers a type of a message for a given thread with threadButler.
   ## This is used for code-generation with `generate()`
   let name = $name
   # input.expectKind(
@@ -249,5 +249,5 @@ macro generate*(name: ThreadName): untyped =
 
   result = name.generateCode()
 
-  when defined(appsterDebug):
+  when defined(butlerDebug):
     echo result.repr

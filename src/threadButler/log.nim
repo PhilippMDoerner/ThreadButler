@@ -1,8 +1,8 @@
 import std/[strutils, logging]
 
-const APPSTER_LOG_LEVEL* {.strdefine: "appsterloglevel".}: string = "lvlerror"
+const BUTLER_LOG_LEVEL* {.strdefine: "butlerloglevel".}: string = "lvlerror"
 
-const LOG_LEVEL*: Level = parseEnum[Level](APPSTER_LOG_LEVEL)
+const LOG_LEVEL*: Level = parseEnum[Level](BUTLER_LOG_LEVEL)
 
 template debug*(message: string) =
   {.cast(noSideEffect).}:

@@ -1,5 +1,5 @@
 import std/[options, os]
-import ./appster/[typegen, communication, events, log]
+import ./threadButler/[typegen, communication, events, log]
 
 export typegen
 export communication

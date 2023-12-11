@@ -1,4 +1,4 @@
-import appster
+import threadButler
 import std/[sugar, logging, options, strformat]
 
 registerTypeFor("client"):

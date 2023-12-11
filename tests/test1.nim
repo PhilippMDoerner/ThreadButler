@@ -7,6 +7,6 @@
 
 import unittest
 
-import appster
+import threadButler
 test "can add":
   check add(5, 5) == 10

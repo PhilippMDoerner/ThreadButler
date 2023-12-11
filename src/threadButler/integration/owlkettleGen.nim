@@ -59,7 +59,7 @@ macro owlSetup*(): typed =
     for node in threadName.setup():
       result.add(node)
       
-  when defined(appsterDebug):
+  when defined(butlerDebug):
     echo result.repr
 
 macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed): typed =
@@ -75,5 +75,5 @@ macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed): typed =
         threadName.genMessageRouter()
     result.add(routingProc)
 
-  when defined(appsterDebug):
+  when defined(butlerDebug):
     echo result.repr
