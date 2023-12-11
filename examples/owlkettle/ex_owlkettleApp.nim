@@ -5,17 +5,6 @@ import owlkettle
 import owlkettle/adw
 import std/[options, logging, strformat]
 
-## Task limitations:
-## - ServerMessage, ClientMessage and sendMessage procs must be generated before AppState is defined
-## - The users handler procs **don't** have to be defined before AppState
-## - The router proc must be defined before addServerListener is called, which can be after AppState
-## 
-## Further ideas for syntax improvement:
-## - Split code generation specifically for owlkettle into 2 pieces:
-##  1) Generating types and Sender procs before AppState definition
-##  2) Generating route after AppState so you can hand over an AppState to the handler procs
-## - Maybe experiment again with annotating both types and handlers
-##    Note that this should also be validated. So when registering a handler you need to validate that a type was also registered for that threadname
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
 owlSetup()

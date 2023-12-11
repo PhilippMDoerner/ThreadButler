@@ -1,5 +1,7 @@
 import std/[terminal, strformat, macros]
 
+## Defines utilities for making validation of individual steps in code-generation easy.
+
 proc assertKind*(node: NimNode, kind: seq[NimNodeKind], msg: string = "") =
   ## Custom version of expectKind, uses doAssert which can never be turned off.
   ## Use this throughout procs to validate that the nodes they get are of specific kinds.
