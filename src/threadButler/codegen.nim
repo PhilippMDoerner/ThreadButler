@@ -3,11 +3,7 @@ import ./utils
 import ./macroCacheUtils
 import ./communication
 
-const routes = CacheTable"routeTable"
-const msgTypes = CacheTable"msgTypes"
-
 ## TODO: 
-## 4) Add support for distinct message types
 ## 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
 ## 6) Change syntax to be more proc-like - Creating a server creates a server object, you attach routes to it and then start it in the end. You can generate code during this process.
 
@@ -24,12 +20,12 @@ proc firstParamName*(node: NimNode): string =
   firstParam.assertKind(nnkIdentDefs)
   return $firstParam[0]
 
-proc kindName(x: RouteName): string = x.capitalize() & "Kind"
+proc kindName(x: string): string = capitalize(x) & "Kind"
 proc kindName*(node: NimNode): string =
   node.assertKind(@[nnkTypeDef])
-  return node.typeName & "Kind"
+  return node.typeName.kindName()
 
-proc fieldName(x: RouteName): string = normalize(x.string) & "Msg"
+proc fieldName(x: string): string = normalize(x) & "Msg"
 proc fieldName*(node: NimNode): string =
   node.assertKind(@[nnkTypeDef])
   return fieldName(node.typeName())
@@ -90,7 +86,6 @@ macro registerTypeFor*(name: ThreadName, input: typed) =
     typeDef.assertKind(nnkTypeDef)
     name.addType(typeDef)
   of nnkStmtList:
-    var typeDefs: seq[NimNode] = @[]
     for node in input:
       case node.kind:
         of nnkTypeDef:
@@ -174,7 +169,6 @@ proc genMessageRouter*(name: string): NimNode =
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
-  let returnTyp = newEmptyNode()
   result = newProc(name = postfix(ident("routeMessage"), "*"))
   
   let msgParamName = "msg"

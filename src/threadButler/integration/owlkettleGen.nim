@@ -1,4 +1,4 @@
-import ../typegen
+import ../codegen
 import std/[macros]
 import ../macroCacheUtils
 
@@ -7,7 +7,6 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
-  let returnTyp = newEmptyNode()
   result = newProc(name = ident("routeMessage"))
   
   let msgParamName = "msg"

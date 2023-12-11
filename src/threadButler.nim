@@ -1,7 +1,7 @@
 import std/[options, os]
-import ./threadButler/[typegen, communication, events, log]
+import ./threadButler/[codegen, communication, events, log]
 
-export typegen
+export codegen
 export communication
 export events
 
@@ -15,10 +15,6 @@ type ServerData*[SMsg, CMsg] = object
   sleepMs*: int # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
   startUp*: seq[Event]
   shutDown*: seq[Event]
-
-proc execStartupEvents[SMSg, CMsg](data: ServerData[SMSg, CMsg]) =
-  for event in data.startUp:
-    event.exec()
 
 proc runServer*[SMsg, CMsg](
   data: var ServerData[SMsg, CMsg]
