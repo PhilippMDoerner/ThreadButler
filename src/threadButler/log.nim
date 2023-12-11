@@ -1,5 +1,9 @@
 import std/[strutils, logging]
 
+## A simple module handling logging within threadbutler, using std/logging.
+## The log-level is set at compile-time using the `-d:buglerloglevel=<LogLevelEnumName>` flag.
+## Logging at a specific level is compiled in or out based on the log-level allowed at compile-time.
+
 const BUTLER_LOG_LEVEL* {.strdefine: "butlerloglevel".}: string = "lvlerror"
 
 const LOG_LEVEL*: Level = parseEnum[Level](BUTLER_LOG_LEVEL)

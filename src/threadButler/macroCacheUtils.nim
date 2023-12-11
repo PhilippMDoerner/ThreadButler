@@ -1,12 +1,18 @@
 import std/[macros, macrocache, strformat, options]
 import ./utils
 
-const types = CacheTable"typeTable"
+## Deals with storing procs and types in the CacheTables `types` (typeTable) and `routes` (routeTable). 
+## Abstracts them away in order to hide the logic needed to store and retrieve multiple NimNodes for a single key.
+
+
+
+
+const types = CacheTable"typeTable" ## \
 ## Stores a list of types for a given "threadServer" based on a given name
 ## The procs are stored in a StatementList-NimNode for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]
 
-const routes = CacheTable"routeTable" ##
+const routes = CacheTable"routeTable" ## \
 ## Stores a list of procs for a given "threadServer" based on a given name
 ## The procs are stored in a StatementList-NimNode for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]

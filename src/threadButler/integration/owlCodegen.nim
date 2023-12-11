@@ -85,7 +85,7 @@ macro owlSetup*() =
     echo result.repr
 
 macro routingSetup*(clientThreadName: string, widgetNode: typed) =
-  let clientThreadName = ThreadName($clientThreadName)
+  let clientThreadName = clientThreadName.toThreadName()
   let widgetName = $widgetNode
   result = newStmtList()
   
