@@ -58,7 +58,7 @@ method view(app: AppState): Widget =
         for msg in app.receivedMessages:
           Label(text = msg) {.hAlign: AlignStart.}
 
-proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) {.registerRouteFor: "client".} =
+proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) {.registerRouteFor: CLIENT_THREAD_NAME.} =
   echo "On Client: Handling msg: ", msg.string
   state.receivedMessages.add(msg.string)
 

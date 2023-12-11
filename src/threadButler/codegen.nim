@@ -7,6 +7,11 @@ import ./channelHub
 ## 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
 ## 6) Change syntax to be more proc-like - Creating a server creates a server object, you attach routes to it and then start it in the end. You can generate code during this process.
 
+## Cleanup Todo:
+## 1) Doc Comments on everything
+## 2) Package tests maybe?
+## 3) README.md
+
 type Message* = concept m
   m.kind is enum
 
@@ -41,6 +46,23 @@ proc getProcDef(node: NimNode): NimNode =
     else:
       raise newException(ValueError, fmt"Developer Error: The supported NimNodeKind {node.kind} was not dealt with!")
 
+proc toThreadName(node: NimNode): ThreadName =
+  node.assertKind(@[nnkStrLit, nnkSym])
+  
+  case node.kind:
+    of nnkStrLit: 
+      let name = $node
+      return ThreadName(name)
+    
+    of nnkSym: 
+      let constExpression: NimNode = node.getImpl()
+      let valueNode: NimNode = constExpression[2]
+      let value: string = $valueNode
+      return ThreadName(value)
+    
+    else:
+      error("Unsupported kind: " & $node.kind)
+  
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
 macro registerRouteFor*(name: string, input: typed) =
@@ -55,7 +77,7 @@ macro registerRouteFor*(name: string, input: typed) =
         - serverRoute(myProc)
     """.dedent(6)
   )
-  let name: ThreadName = ThreadName($name)
+  let name: ThreadName = name.toThreadName()
   
   let procDef = input.getProcDef()
   input.assertKind(nnkProcDef)
@@ -69,7 +91,6 @@ proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSect
 macro registerTypeFor*(name: string, input: typed) =
   ## Registers a type of a message for a given thread with threadButler.
   ## This is used for code-generation with `generate()`
-  let name: ThreadName = ThreadName($name)
   input.expectKind(
     @[nnkSym, nnkStmtList], 
     fmt"""
@@ -84,6 +105,7 @@ macro registerTypeFor*(name: string, input: typed) =
               ThirdType = <Third Type declaration>
     """.dedent(6)
   )
+  let name: ThreadName = name.toThreadName()
   
   case input.kind:
   of nnkSym:

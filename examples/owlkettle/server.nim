@@ -2,13 +2,16 @@ import threadButler
 import threadButler/integration/owlkettleUtils
 import std/[logging, strformat, sugar]
 
-registerTypeFor("client"):
+const CLIENT_THREAD_NAME* = "client"
+const SERVER_THREAD_NAME* = "server"
+
+registerTypeFor(CLIENT_THREAD_NAME):
   type Response* = distinct string
   
-registerTypeFor("server"):
+registerTypeFor(SERVER_THREAD_NAME):
   type Request* = distinct string
 
-proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
+proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} = 
   let resp = Response(fmt("Response to: {msg.string}"))
   discard hub.sendMessage(resp)
 
