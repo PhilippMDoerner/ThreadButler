@@ -13,7 +13,7 @@ addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
   discard hub.sendMessage(Response("Handled: " & msg.string))
 
-proc triggerShutdown(msg: KillMessage, hub: auto) {.registerRouteFor: "server".} =
+proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: "server".} =
   shutdownServer()
 
 proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: "client".} =

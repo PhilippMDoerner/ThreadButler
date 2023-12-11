@@ -10,13 +10,14 @@ proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
   app: OwlkettleApp, 
   data: ServerData[SMsg, CMsg]
 ) =  
-  mixin routeMessage
   ## Adds a callback function to the GTK app that checks every 5 ms whether the 
   ## server sent a new message. Triggers a UI update if that is the case.
+  mixin routeMessage
+  let hub: ChannelHub[SMsg, CMsg] = data.hub
   proc listener(): bool =
     let msg = data.hub.readMsg(CMsg)
     if msg.isSome():
-      routeMessage(msg.get(), data.hub, app)
+      routeMessage[SMsg, CMsg](msg.get(), hub, app)
       discard app.redraw()
     
     const KEEP_LISTENER_ACTIVE = true

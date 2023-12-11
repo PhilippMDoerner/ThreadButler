@@ -8,13 +8,29 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
   result = newProc(name = ident("routeMessage"))
+  let genericParams = nnkGenericParams.newTree(
+    nnkIdentDefs.newTree(
+      newIdentNode("SMsg"),
+      newIdentNode("CMsg"),
+      newEmptyNode(),
+      newEmptyNode()
+    )
+  )
+  result[2] = genericParams # 2 = Proc Node for generic params
   
   let msgParamName = "msg"
   let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
   result.params.add(msgParam)
   
   let hubParamName = "hub"
-  let hubParam = newIdentDefs(ident(hubParamName), ident("ChannelHub"))
+  let hubParam = newIdentDefs(
+    ident(hubParamName), 
+    nnkBracketExpr.newTree(
+      ident("ChannelHub"),
+      ident("SMsg"),
+      ident("CMsg")
+    )
+  )
   result.params.add(hubParam)
   
   let stateParamName = "state"
