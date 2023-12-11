@@ -1,6 +1,6 @@
 import std/[options]
 import pkg/owlkettle
-import ./owlkettleGen
+import ./owlCodegen
 import ../channelHub
 import ../../threadButler
 
