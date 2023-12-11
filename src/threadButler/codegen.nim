@@ -43,22 +43,22 @@ proc getProcDef(node: NimNode): NimNode =
 
 proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
   
-macro registerRouteFor*(name: string, input: typed): untyped =
+macro registerRouteFor*(name: string, input: typed) =
   ## Registers a proc for handling messages as "server route" with threadButler.
   ## This is used for code-generation with `generate()`
-  let name: ThreadName = ThreadName($name)
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
       Tried to register `{strutils.strip(input.repr)}` as serverRoute with unsupported syntax!
       The following are supported:
-        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.serverRoute.\}"}
+        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.registerRouteFor\: \"server\".\}"}
         - serverRoute(myProc)
     """.dedent(6)
   )
+  let name: ThreadName = ThreadName($name)
   
   let procDef = input.getProcDef()
-  input.expectKind(nnkProcDef)
+  input.assertKind(nnkProcDef)
   addRoute(name, procDef)
   
   if input.isDefiningProc():
@@ -70,15 +70,20 @@ macro registerTypeFor*(name: string, input: typed) =
   ## Registers a type of a message for a given thread with threadButler.
   ## This is used for code-generation with `generate()`
   let name: ThreadName = ThreadName($name)
-  # input.expectKind(
-  #   @[nnkProcDef, nnkSym], 
-  #   fmt"""
-  #     Tried to register `{strutils.strip(input.repr)}` as serverRoute with unsupported syntax!
-  #     The following are supported:
-  #       - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.serverRoute.\}"}
-  #       - serverRoute(myProc)
-  #   """.dedent(6)
-  # )
+  input.expectKind(
+    @[nnkSym, nnkStmtList], 
+    fmt"""
+      Tried to register `{strutils.strip(input.repr)}` as type with unsupported syntax!
+      The following are supported:
+        - registerTypeFor("someName", SomeType)
+        - registerTypeFor("someName"):
+            type SomeType = <Your Type declaration>
+        - registerTypeFor("someName"):
+            type 
+              OtherType = <Second Type declaration>
+              ThirdType = <Third Type declaration>
+    """.dedent(6)
+  )
   
   case input.kind:
   of nnkSym:
