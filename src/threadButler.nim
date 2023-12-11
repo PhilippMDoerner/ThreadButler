@@ -1,8 +1,8 @@
 import std/[options, os]
-import ./threadButler/[codegen, communication, events, log]
+import ./threadButler/[codegen, channelHub, events, log]
 
 export codegen
-export communication
+export channelHub
 export events
 
 type KillError = object of CatchableError

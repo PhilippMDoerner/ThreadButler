@@ -1,7 +1,7 @@
 import std/[macros, macrocache, strformat, strutils, unicode, sequtils]
 import ./utils
 import ./macroCacheUtils
-import ./communication
+import ./channelHub
 
 ## TODO: 
 ## 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
@@ -210,7 +210,7 @@ proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
   let variantType = newIdentNode(name.variantName)
   let msgKind = newIdentNode(typ.kindName)
   let variantField = newIdentNode(typ.fieldName)
-  let senderProcName = newIdentNode(communication.SEND_PROC_NAME) # This string depends on the name 
+  let senderProcName = newIdentNode(channelHub.SEND_PROC_NAME) # This string depends on the name 
   
   quote do:
     proc `procName`*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `msgType`): bool =

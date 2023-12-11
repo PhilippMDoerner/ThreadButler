@@ -1,7 +1,7 @@
 import std/[options]
 import pkg/owlkettle
 import ./owlkettleGen
-import ../communication
+import ../channelHub
 import ../../threadButler
 
 export owlSetup, routingSetup
