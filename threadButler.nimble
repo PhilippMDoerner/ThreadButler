@@ -51,3 +51,6 @@ task examples, "compile all examples":
 task exampleList, "list all available examples":
   for file in findExamples("./examples"):
     echo file
+    
+task docs, "Generate the nim docs":
+  exec"nimble doc --project --index:on src/threadButler.nim"
