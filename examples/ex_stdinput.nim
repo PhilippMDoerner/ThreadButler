@@ -13,8 +13,9 @@ registerTypeFor(SERVER_THREAD_NAME):
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
-proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} = 
-  discard hub.sendMessage(Response("Handled: " & msg.string))
+registerRouteFor(SERVER_THREAD_NAME):
+  proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
+    discard hub.sendMessage(Response("Handled: " & msg.string))
 
 proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} =
   shutdownServer()

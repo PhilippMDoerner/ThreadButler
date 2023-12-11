@@ -30,16 +30,28 @@ proc fieldName*(node: NimNode): string =
   node.assertKind(@[nnkTypeDef])
   return fieldName(node.typeName())
 
-proc getProcDef(node: NimNode): NimNode =
+proc extractProcDefs(node: NimNode): seq[NimNode] =
   ## Utility proc. Tries to extract a procDef from `node`.
-  node.assertKind(@[nnkProcDef, nnkSym])
+  node.assertKind(@[nnkProcDef, nnkSym, nnkStmtList])
   
-  return case node.kind:
-    of nnkProcDef: node
-    of nnkSym:
-      node.getImpl()
-    else:
-      raise newException(ValueError, fmt"Developer Error: The supported NimNodeKind {node.kind} was not dealt with!")
+  case node.kind:
+  of nnkProcDef:
+    result.add(node)
+  of nnkSym: 
+    let procDef = node.getImpl()
+    procDef.assertKind(nnkProcDef)
+    result.add(procDef)
+    
+  of nnkStmtList:
+    for subNode in node:
+      case subNode.kind:
+      of nnkProcDef:
+        result.add(subNode)
+      else:
+        error(fmt"Can not define non-proc node of kind '{subNode.kind}' in section for proc definitions")
+    
+  else:
+    raise newException(ValueError, fmt"Developer Error: The supported NimNodeKind {node.kind} was not dealt with!")
 
 proc toThreadName(node: NimNode): ThreadName =
   node.assertKind(@[nnkStrLit, nnkSym])
@@ -58,60 +70,64 @@ proc toThreadName(node: NimNode): ThreadName =
     else:
       error("Unsupported kind: " & $node.kind)
   
-proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
+proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef, nnkStmtList]
   
 macro registerRouteFor*(name: string, input: typed) =
   ## Registers a proc for handling messages as "server route" with threadButler.
   ## This is used for code-generation with `generate()`  
   input.expectKind(
-    @[nnkProcDef, nnkSym], 
+    @[nnkProcDef, nnkSym, nnkStmtList], 
     fmt"""
       Tried to register `{strutils.strip(input.repr)}` as serverRoute with unsupported syntax!
       The following are supported:
-        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.registerRouteFor\: \"server\".\}"}
-        - serverRoute(myProc)
+        - proc myProc(msg: SomeType, hub: ChannelHub[X, Y]){"\{.registerRouteFor\: \"<someName>\".\}"} = <Your Implementation>
+        - registerRouteFor("<someName>", myProc)
+        - registerRouteFor("<someName>"):
+          proc myProc(msg: SomeType, hub: ChannelHub[X, Y]) = <Your Implementation>
     """.dedent(6)
   )
   let name: ThreadName = name.toThreadName()
   
-  let procDef = input.getProcDef()  
-  input.assertKind(nnkProcDef)
-  addRoute(name, procDef)
+  let procDefs = input.extractProcDefs() 
+  for procDef in procDefs:
+    name.addRoute(procDef)
   
   if input.isDefiningProc():
     result = input ## Necessary so that the defined proc does not "disappear"
 
   when defined(butlerDebug):
-    echo fmt"Registered handler '{procDef.name}' for '{name.string}'"
+    let procNames = procDefs.mapIt($it.name)
+    echo fmt"Registered handlers '{procNames}' for '{name.string}'"
 
 proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
 
 proc extractTypeDefs(node: NimNode): seq[NimNode] =
-  node.assertKind(@[nnkSym, nnkStmtList])
+  node.assertKind(@[nnkTypeDef, nnkSym, nnkStmtList])
 
   case node.kind:
-    of nnkSym:
-      let typeDef = node.getImpl()
-      typeDef.assertKind(nnkTypeDef)
-      result.add(typeDef)
-      
-    of nnkStmtList:
-      for subNode in node:
-        
-        case subNode.kind:
-          of nnkTypeDef:
-            result.add(subNode)
-            
-          of nnkTypeSection:
-            for subSubNode in subNode:
-              subSubNode.assertKind(nnkTypeDef)
-              result.add(subSubNode)
-              
-          else:
-            error(fmt"'typ' macro does not support inner node of kind '{subNode.kind}'")
-    else:
-      error(fmt"'typ' macro does not support kind '{node.kind}'")
+  of nnkTypeDef:
+    result.add(node)
+  of nnkSym:
+    let typeDef = node.getImpl()
+    typeDef.assertKind(nnkTypeDef)
+    result.add(typeDef)
     
+  of nnkStmtList:
+    for subNode in node:
+      case subNode.kind:
+      of nnkTypeDef:
+        result.add(subNode)
+        
+      of nnkTypeSection:
+        for subSubNode in subNode:
+          subSubNode.assertKind(nnkTypeDef)
+          result.add(subSubNode)
+          
+      else:
+        error(fmt"'typ' macro does not support inner node of kind '{subNode.kind}'")
+  else:
+    error(fmt"'typ' macro does not support kind '{node.kind}'")
+  
 
 macro registerTypeFor*(name: string, input: typed) =
   ## Registers a type of a message for a given thread with threadButler.
