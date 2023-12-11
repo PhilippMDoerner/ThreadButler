@@ -1,26 +1,29 @@
 import threadButler
 import std/[sugar, logging, options, strformat]
 
-registerTypeFor("client"):
+const CLIENT_THREAD_NAME = "client"
+const SERVER_THREAD_NAME = "server"
+
+registerTypeFor(CLIENT_THREAD_NAME):
   type Response = distinct string
 
-registerTypeFor("server"):
+registerTypeFor(SERVER_THREAD_NAME):
   type Request = distinct string
   type KillMessage = object
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
-proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.registerRouteFor: "server".} = 
+proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} = 
   discard hub.sendMessage(Response("Handled: " & msg.string))
 
-proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: "server".} =
+proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} =
   shutdownServer()
 
-proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: "client".} =
-  echo "On Client: ", msg.string
+proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: CLIENT_THREAD_NAME.} =
+  debug "On Client: ", msg.string
 
-generate("server")
-generate("client")
+generate(SERVER_THREAD_NAME)
+generate(CLIENT_THREAD_NAME)
 
 proc main() =
   var channels = new(ChannelHub[ServerMessage, ClientMessage])

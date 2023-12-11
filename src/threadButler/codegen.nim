@@ -216,6 +216,11 @@ proc genMessageRouter*(name: ThreadName): NimNode =
   )
   result.params.add(hubParam)
   
+  let hasEmptyMessageVariant = not name.hasTypes()
+  if hasEmptyMessageVariant:
+    result.body = nnkDiscardStmt.newTree(newEmptyNode())
+    return
+  
   let caseStmt = nnkCaseStmt.newTree(
     newDotExpr(ident(msgParamName), ident("kind"))
   )
@@ -276,7 +281,7 @@ proc generateCode*(name: ThreadName): NimNode =
     result.add(genSenderProc(name, typ))
 
 macro generate*(name: string): untyped =
-  let name = ThreadName($name)
+  let name: ThreadName = name.toThreadName()
 
   result = name.generateCode()
 

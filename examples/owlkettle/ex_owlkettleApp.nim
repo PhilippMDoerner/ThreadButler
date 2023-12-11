@@ -59,7 +59,7 @@ method view(app: AppState): Widget =
           Label(text = msg) {.hAlign: AlignStart.}
 
 proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) {.registerRouteFor: CLIENT_THREAD_NAME.} =
-  echo "On Client: Handling msg: ", msg.string
+  debug "On Client: Handling msg: ", msg.string
   state.receivedMessages.add(msg.string)
 
 routingSetup("client", App)
