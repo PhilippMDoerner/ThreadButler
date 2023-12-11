@@ -20,14 +20,14 @@ addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
 owlSetup()
 
-proc sendAppMsg(app: auto) =
-  discard app.server.sendMessageToServer(app.inputText.Request)
-  app.inputText = ""
-
 viewable App:
   server: ServerData[ServerMessage, ClientMessage]
   inputText: string
   receivedMessages: seq[string]
+
+proc sendAppMsg(app: AppState) =
+  discard app.server.sendMessageToServer(app.inputText.Request)
+  app.inputText = ""
 
 method view(app: AppState): Widget =
   result = gui:
@@ -67,7 +67,7 @@ routingSetup("client", App)
 ## Main
 proc main() =
   # Server
-  var server = initServerData[ServerMessage, ClientMessage]()
+  var server = initOwlBackend[ServerMessage, ClientMessage]()
   
   withServer(server):
     let listener = createListenerEvent(server, AppState)

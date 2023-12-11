@@ -37,13 +37,13 @@ template createListenerEvent*(data: typed, stateType: typedesc): ApplicationEven
     let state = stateType(state)
     addServerListener(state, data)
 
-template initServer*(
+proc initServer*[SMsg, CMsg](
   shutdownEvents: seq[events.Event] = @[],
   startupEvents: seq[events.Event] = @[],
   sleepInMs: int = 0
-): untyped =
-  ServerData[ServerMessage, ClientMessage](
-    hub: new(ChannelHub[ServerMessage, ClientMessage]),
+): ServerData[SMsg, CMsg] =
+  ServerData[SMsg, CMsg](
+    hub: new(ChannelHub[SMsg, CMsg]),
     sleepMs: sleepInMs,
     startUp: startupEvents,
     shutDown: shutdownEvents

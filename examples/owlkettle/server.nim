@@ -17,8 +17,8 @@ proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_TH
 
 # registerRouteFor(SERVER_THREAD_NAME, handleRequest)
 
-proc initServerData*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  
-  result = initServer(
+proc initOwlBackend*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  
+  result = initServer[SMsg, CMsg](
     startupEvents = @[
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
