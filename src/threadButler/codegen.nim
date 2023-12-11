@@ -1,4 +1,4 @@
-import std/[macros, macrocache, strformat, strutils, unicode, sequtils]
+import std/[macros, strformat, strutils, unicode, sequtils]
 import ./utils
 import ./macroCacheUtils
 import ./channelHub
@@ -11,9 +11,6 @@ import ./channelHub
 ## 1) Doc Comments on everything
 ## 2) Package tests maybe?
 ## 3) README.md
-
-type Message* = concept m
-  m.kind is enum
 
 proc variantName*(x: ThreadName): string = x.string.capitalize() & "Message"
 proc enumName*(x: ThreadName): string = x.string.capitalize() & "Kinds"
@@ -195,12 +192,28 @@ proc genMessageRouter*(name: ThreadName): NimNode =
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
 
   result = newProc(name = postfix(ident("routeMessage"), "*"))
+  let genericParams = nnkGenericParams.newTree(
+    nnkIdentDefs.newTree(
+      newIdentNode("SMsg"),
+      newIdentNode("CMsg"),
+      newEmptyNode(),
+      newEmptyNode()
+    )
+  )
+  result[2] = genericParams # 2 = Proc Node for generic params
   
   let msgParamName = "msg"
   let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
   result.params.add(msgParam)
   
-  let hubParam = newIdentDefs(ident("hub"), ident("ChannelHub"))
+  let hubParam = newIdentDefs(
+    ident("hub"), 
+    nnkBracketExpr.newTree(
+      ident("ChannelHub"),
+      ident("SMsg"),
+      ident("CMsg")
+    )
+  )
   result.params.add(hubParam)
   
   let caseStmt = nnkCaseStmt.newTree(

@@ -28,7 +28,7 @@ proc runServer*[SMsg, CMsg](
       let msg: Option[SMsg] = data.hub.readMsg(SMSg)
       if msg.isSome():
         try:
-          routeMessage(msg.get(), data.hub)
+          routeMessage[SMsg, CMSg](msg.get(), data.hub)
         
         except KillError:
           break

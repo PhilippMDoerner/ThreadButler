@@ -15,6 +15,7 @@ proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_TH
   let resp = Response(fmt("Response to: {msg.string}"))
   discard hub.sendMessage(resp)
 
+# registerRouteFor(SERVER_THREAD_NAME, handleRequest)
 
 proc initServerData*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  
   result = initServer(
