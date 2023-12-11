@@ -1,7 +1,10 @@
 import std/[options, os]
 import ./threadButler/[codegen, channelHub, events, log]
 
-export codegen
+export 
+  codegen.generate, 
+  codegen.registerRouteFor,
+  codegen.registerTypeFor
 export channelHub
 export events
 
