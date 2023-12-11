@@ -61,17 +61,24 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
     
   result.body.add(caseStmt)
 
-proc setup(name: ThreadName): NimNode =
+proc generateOwlCode(name: ThreadName): NimNode =
   result = newStmtList()
   
-  result.addTypeCode(name)
-  for typ in name.getTypes():
+  let types = name.getTypes()
+  
+  let messageEnum = name.asEnum(types)
+  result.add(messageEnum)
+  
+  let messageVariant = name.asVariant(types)
+  result.add(messageVariant)
+
+  for typ in types:
     result.add(genSenderProc(name, typ))
 
 macro owlSetup*() =
   result = newStmtList()
   for threadName in getRegisteredThreadnames():
-    for node in threadName.setup():
+    for node in threadName.generateOwlCode():
       result.add(node)
       
   when defined(butlerDebug):
@@ -87,7 +94,7 @@ macro routingSetup*(clientThreadName: string, widgetNode: typed) =
     let routingProc: NimNode = if isClientThread:
         threadName.genOwlRouter(widgetName)
       else:
-        threadName.genMessageRouter()
+        threadName.genMessageRouter(threadName.getRoutes(), threadName.getTypes())
     result.add(routingProc)
 
   when defined(butlerDebug):

@@ -3,6 +3,10 @@ import ./utils
 import ./macroCacheUtils
 import ./channelHub
 
+## Defines all code for code generation in thread butler.
+## All names of generated types are inferred from the name they are being registered with.
+## All names of fields and enum kinds are inferred based on the data registered.
+
 ## TODO: 
 ## 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
 ## 6) Change syntax to be more proc-like - Creating a server creates a server object, you attach routes to it and then start it in the end. You can generate code during this process.
@@ -12,26 +16,42 @@ import ./channelHub
 ## 2) Package tests maybe?
 ## 3) README.md
 
-proc variantName*(x: ThreadName): string = x.string.capitalize() & "Message"
-proc enumName*(x: ThreadName): string = x.string.capitalize() & "Kinds"
+proc variantName*(name: ThreadName): string = 
+  ## Infers the name of the Message-object-variant-type associated with `name` from `name`
+  name.string.capitalize() & "Message"
+
+proc enumName*(name: ThreadName): string = 
+  ## Infers the name of the enum-type associated with `name` from `name`
+  name.string.capitalize() & "Kinds"
+
 proc firstParamName*(node: NimNode): string =
+  ## Extracts the name of the first parameter of a proc
   node.assertKind(@[nnkProcDef])
   let firstParam = node.params[1]
   firstParam.assertKind(nnkIdentDefs)
   return $firstParam[0]
-
-proc kindName(x: string): string = capitalize(x) & "Kind"
+  
 proc kindName*(node: NimNode): string =
+  ## Infers the name of a kind of an enum from a type
   node.assertKind(@[nnkTypeDef])
-  return node.typeName.kindName()
+  let typeName = node.typeName
+  return capitalize(typeName) & "Kind"
 
-proc fieldName(x: string): string = normalize(x) & "Msg"
 proc fieldName*(node: NimNode): string =
+  ## Infers the name of a field on a Message-object-variant-type from a type
   node.assertKind(@[nnkTypeDef])
-  return fieldName(node.typeName())
+  let typeName = node.typeName()
+  return normalize(typeName) & "Msg"
 
 proc extractProcDefs(node: NimNode): seq[NimNode] =
-  ## Utility proc. Tries to extract a procDef from `node`.
+  ## Extracts nnkProcDef-NimNodes from a given node.
+  ## Does not extract all nnkProcDef-NimNodes, only those that were added using supported Syntax.
+  ## Supported syntax variations are:
+  ## 1) myMacro(myProc)
+  ## 2) myMacro():
+  ##      proc myProc1() = <myProc1Implementation>
+  ##      proc myProc2() = <myProc2Implementation>
+  ## 3) proc myProc() {.myMacro.} = <myProcImplementation>
   node.assertKind(@[nnkProcDef, nnkSym, nnkStmtList])
   
   case node.kind:
@@ -48,33 +68,38 @@ proc extractProcDefs(node: NimNode): seq[NimNode] =
       of nnkProcDef:
         result.add(subNode)
       else:
-        error(fmt"Can not define non-proc node of kind '{subNode.kind}' in section for proc definitions")
+        error(fmt"Defining non-proc nodes of kind '{subNode.kind}' in section for proc definitions is not supported!")
     
-  else:
-    raise newException(ValueError, fmt"Developer Error: The supported NimNodeKind {node.kind} was not dealt with!")
+  else: 
+    discard
 
 proc toThreadName(node: NimNode): ThreadName =
+  ## Extracts ThreadName from NimNode.
+  ## Supports node being either a string literal or a const variable of a string.
   node.assertKind(@[nnkStrLit, nnkSym])
   
   case node.kind:
-    of nnkStrLit: 
-      let name = $node
-      return ThreadName(name)
-    
-    of nnkSym: 
-      let constExpression: NimNode = node.getImpl()
-      let valueNode: NimNode = constExpression[2]
-      let value: string = $valueNode
-      return ThreadName(value)
-    
-    else:
-      error("Unsupported kind: " & $node.kind)
+  of nnkStrLit: 
+    let name = $node
+    return ThreadName(name)
   
-proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef, nnkStmtList]
+  of nnkSym: 
+    let constExpression: NimNode = node.getImpl()
+    let valueNode: NimNode = constExpression[2]
+    valueNode.assertKind(nnkStrLit)
+    let value: string = $valueNode
+    return ThreadName(value)
+  
+  else:
+    error("Unsupported way of declaring a ThreadName: " & $node.kind)
+  
   
 macro registerRouteFor*(name: string, input: typed) =
-  ## Registers a proc for handling messages as "server route" with threadButler.
-  ## This is used for code-generation with `generate()`  
+  ## Registers a handler proc for `name` with threadButler.
+  ## Supports various syntax-constellations, see `extractProcDefs`.
+  ## This does not change or remove any proc definitions this macro is applied to.
+  ## Registered procs are used for code-generation with various macros, e.g. `generate`. 
+  ## This does not generate code on its own.
   input.expectKind(
     @[nnkProcDef, nnkSym, nnkStmtList], 
     fmt"""
@@ -92,16 +117,26 @@ macro registerRouteFor*(name: string, input: typed) =
   for procDef in procDefs:
     name.addRoute(procDef)
   
-  if input.isDefiningProc():
+  let containsProcDefs = input.kind in [nnkProcDef, nnkStmtList]
+  if containsProcDefs:
     result = input ## Necessary so that the defined proc does not "disappear"
 
   when defined(butlerDebug):
     let procNames = procDefs.mapIt($it.name)
     echo fmt"Registered handlers '{procNames}' for '{name.string}'"
 
-proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
 
 proc extractTypeDefs(node: NimNode): seq[NimNode] =
+  ## Extracts nnkTypeDef-NimNodes from a given node.
+  ## Does not extract all nnkTypeDef-NimNodes, only those that were added using supported Syntax.
+  ## Supported syntax variations are:
+  ## 1) myMacro(myType)
+  ## 2) myMacro():
+  ##      type myType1 = <myTypeDef1>
+  ## 3) myMacro():
+  ##      type 
+  ##        myType1 = <myTypeDef1>
+  ##        myType2 = <myTypeDef2>  
   node.assertKind(@[nnkTypeDef, nnkSym, nnkStmtList])
 
   case node.kind:
@@ -130,8 +165,11 @@ proc extractTypeDefs(node: NimNode): seq[NimNode] =
   
 
 macro registerTypeFor*(name: string, input: typed) =
-  ## Registers a type of a message for a given thread with threadButler.
-  ## This is used for code-generation with `generate()`
+  ## Registers a type of a message for `name` with threadButler.
+  ## This does not change or remove any type definition this macro is applied to.
+  ## Supports various syntax-constellations, see `extractTypeDefs`.
+  ## Registered types are used for code-generation with various macros, e.g. `generate`.
+  ## This does not generate code on its own.
   input.expectKind(
     @[nnkSym, nnkStmtList], 
     fmt"""
@@ -151,22 +189,30 @@ macro registerTypeFor*(name: string, input: typed) =
   for typeDef in input.extractTypeDefs():
     name.addType(typeDef)
   
-  if input.isDefiningType(): 
+  let containsTypeDefs = input.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
+  if containsTypeDefs: 
     result = input  ## Necessary so that the defined type does not "disappear"
 
   when defined(butlerDebug):
     let typeNames = input.extractTypeDefs().mapIt($it[0])
     echo fmt"Registered types '{typeNames}' for '{name.string}'"
 
-proc asEnum(name: ThreadName): NimNode =
-  ## Generates an enum type `enumName` with all keys in `routes` turned into enum values.
-  let types = name.getTypes()
+proc asEnum*(name: ThreadName, types: seq[NimNode]): NimNode =
+  ## Generates an enum type for `name`.
+  ## The name of the enum-type is inferred from `name`, see the proc `enumName`.
+  ## The enum is generated according to the pattern:
+  ##  type <name>Kinds = enum
+  ##    --- Repeat per type - start ---
+  ##    <type>Kind
+  ##    --- Repeat per type - end ---
+  ## 
+  ## Returns an enum with a single enum-value "none" if types is empty.
   let hasTypes = types.len > 0
   
   let enumFields: seq[NimNode] = if not hasTypes:
       @[ident("none")] # Fallback when no message type is provided
     else:
-      name.getTypes().mapIt(ident(it.kindName))
+      types.mapIt(ident(it.kindName))
   
   return newEnum(
     name = ident(name.enumName), 
@@ -175,12 +221,21 @@ proc asEnum(name: ThreadName): NimNode =
     pure = true
   )
 
-proc asVariant(name: ThreadName): NimNode =
-  ## Generates an object variant type `typeName` using the enum called `enumName`.
-  ## Each variation of the variant has 1 field. 
-  ## The type of that field is the message type stored in the NimNode in `routes`.
-  ## Returns a simple object type with no fields if no routes are registered
-  if not name.hasTypes():
+proc asVariant*(name: ThreadName, types: seq[NimNode] ): NimNode =
+  ## Generates a ref object variant type for `name`.
+  ## The name of the object-variant-type is inferred from `name`, see the proc `variantName`.
+  ## Uses the enum-type generated by `asEnum` for the discriminator.
+  ## The variant is generated according to the pattern:
+  ##  type <name>Message = ref object
+  ##    case kind: <enumName>
+  ##    --- Repeat per type - start ---
+  ##    of <enumKind>: 
+  ##      <type>Msg: <type>
+  ##    --- Repeat per type - end ---
+  ## 
+  ## Returns an empty ref object if types is empty.
+  let hasTypes = types.len() > 0
+  if not hasTypes:
     let typeName = newIdentNode(name.variantName)
     return quote do:
       type `typeName` = ref object 
@@ -219,11 +274,18 @@ proc asVariant(name: ThreadName): NimNode =
     )
   )
   
-proc genMessageRouter*(name: ThreadName): NimNode =
-  ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
-  ## `msgVariantTypeName` must be the name of an object variant type.
-  ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
-
+proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNode]): NimNode =
+  ## Generates a proc `routeMessage` for unpacking the object variant type for `name` and calling a handler proc with the unpacked value.
+  ## Uses the object-variant generated by `asVariant`.
+  ## The proc is generated based on the registered routes according to this pattern:
+  ##  proc routeMessage*[SMsg, CMsg](msg: <ObjectVariant>, hub: ChannelHub[SMsg, CMsg]) =
+  ##    case msg.kind:
+  ##    --- Repeat per route - start ---
+  ##    of <enumKind>:
+  ##      <handlerProc>(msg.<variantField>, hub)
+  ##    --- Repeat per route - end ---
+  ## 
+  ## Returns an empty proc if types is empty
   result = newProc(name = postfix(ident("routeMessage"), "*"))
   let genericParams = nnkGenericParams.newTree(
     nnkIdentDefs.newTree(
@@ -249,7 +311,7 @@ proc genMessageRouter*(name: ThreadName): NimNode =
   )
   result.params.add(hubParam)
   
-  let hasEmptyMessageVariant = not name.hasTypes()
+  let hasEmptyMessageVariant = not types.len() == 0
   if hasEmptyMessageVariant:
     result.body = nnkDiscardStmt.newTree(newEmptyNode())
     return
@@ -258,7 +320,7 @@ proc genMessageRouter*(name: ThreadName): NimNode =
     newDotExpr(ident(msgParamName), ident("kind"))
   )
   
-  for handlerProc in name.getRoutes():
+  for handlerProc in routes:
     # Generates proc call `<routeName>(<msgParamName>.<fieldName>, hub)`
     let firstParamType = handlerProc.firstParamType
     let handlerCall = nnkCall.newTree(
@@ -267,7 +329,7 @@ proc genMessageRouter*(name: ThreadName): NimNode =
       ident("hub")
     )
     
-    # Generates `of <routeName>: <handlerCall>`
+    # Generates `of <enumKind>: <handlerCall>`
     let branchNode = nnkOfBranch.newTree(
       ident(firstParamType.kindName),
       newStmtList(handlerCall)
@@ -278,7 +340,10 @@ proc genMessageRouter*(name: ThreadName): NimNode =
   result.body.add(caseStmt)
 
 proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
-  ## Generates a procedure to send messages to the server via ChannelHub and hiding the object variant.
+  ## Generates a generic proc `sendMessage`.
+  ## These procs can be used by any thread to send messages to thread `name`.
+  ## They "wrap" the message of type `typ` in the object-variant 
+  ## generated by `asVariant` before sending that message through the corresponding `Channel`.
   typ.assertKind(nnkTypeDef)
   
   let procName = newIdentNode("sendMessage")
@@ -293,27 +358,36 @@ proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
       return hub.`senderProcName`(msgWrapper)
 
-proc addTypeCode*(
-  node: NimNode, 
-  name: ThreadName, 
-) =
-  ## Adds the various pieces of code that need to be generated to the output
-  let messageEnum = name.asEnum()
-  node.add(messageEnum)
-  
-  let messageVariant = name.asVariant()
-  node.add(messageVariant)
 
-proc generateCode*(name: ThreadName): NimNode =
+proc generateCode(name: ThreadName): NimNode =
   result = newStmtList()
   
-  result.addTypeCode(name)
-  result.add(name.genMessageRouter())
+  let types = name.getTypes()
+  
+  let messageEnum = name.asEnum(types)
+  result.add(messageEnum)
+  
+  let messageVariant = name.asVariant(types)
+  result.add(messageVariant)
+  
+  let routerProc = name.genMessageRouter(name.getRoutes(), name.getTypes())
+  result.add(routerProc)
   
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
 
 macro generate*(name: string): untyped =
+  ## Generates all types and procs needed for message-passing for `name`:
+  ## 1) An enum based representing all different types of messages that can be sent to the thread `name`.
+  ## 2) An object variant that wraps any message to be sent through a channel to the thread `name`.
+  ## 3) A generic routing proc for the thread `name` to:
+  ##      - receive the message object variant from 2)
+  ##      - unwrap it
+  ##      - call a handler proc with the unwrapped message.
+  ## 4) Generic procs for sending messages to `name` by:
+  ##      - receiving a message-type
+  ##      - wrapping it in the object variant from 2)
+  ##      - sending that to a channel to the thread `name`.
   let name: ThreadName = name.toThreadName()
 
   result = name.generateCode()
