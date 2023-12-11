@@ -15,8 +15,6 @@ import ./channelHub
 type Message* = concept m
   m.kind is enum
 
-type RouteName* = string
-
 proc variantName*(x: ThreadName): string = x.string.capitalize() & "Message"
 proc enumName*(x: ThreadName): string = x.string.capitalize() & "Kinds"
 proc firstParamName*(node: NimNode): string =
