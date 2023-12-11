@@ -12,8 +12,8 @@ type Message* = concept m
 
 type RouteName* = string
 
-proc variantName*(x: ThreadName): string = x.capitalize() & "Message"
-proc enumName*(x: ThreadName): string = x.capitalize() & "Kinds"
+proc variantName*(x: ThreadName): string = x.string.capitalize() & "Message"
+proc enumName*(x: ThreadName): string = x.string.capitalize() & "Kinds"
 proc firstParamName*(node: NimNode): string =
   node.assertKind(@[nnkProcDef])
   let firstParam = node.params[1]
@@ -46,7 +46,7 @@ proc isDefiningProc(node: NimNode): bool = node.kind in [nnkProcDef]
 macro registerRouteFor*(name: string, input: typed): untyped =
   ## Registers a proc for handling messages as "server route" with threadButler.
   ## This is used for code-generation with `generate()`
-  let name = $name
+  let name: ThreadName = ThreadName($name)
   input.expectKind(
     @[nnkProcDef, nnkSym], 
     fmt"""
@@ -66,10 +66,10 @@ macro registerRouteFor*(name: string, input: typed): untyped =
 
 proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
 
-macro registerTypeFor*(name: ThreadName, input: typed) =
+macro registerTypeFor*(name: string, input: typed) =
   ## Registers a type of a message for a given thread with threadButler.
   ## This is used for code-generation with `generate()`
-  let name = $name
+  let name: ThreadName = ThreadName($name)
   # input.expectKind(
   #   @[nnkProcDef, nnkSym], 
   #   fmt"""
@@ -120,7 +120,7 @@ proc asEnum(name: ThreadName): NimNode =
     pure = true
   )
 
-proc asVariant(name: string): NimNode =
+proc asVariant(name: ThreadName): NimNode =
   ## Generates an object variant type `typeName` using the enum called `enumName`.
   ## Each variation of the variant has 1 field. 
   ## The type of that field is the message type stored in the NimNode in `routes`.
@@ -164,7 +164,7 @@ proc asVariant(name: string): NimNode =
     )
   )
   
-proc genMessageRouter*(name: string): NimNode =
+proc genMessageRouter*(name: ThreadName): NimNode =
   ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
   ## `msgVariantTypeName` must be the name of an object variant type.
   ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
@@ -237,8 +237,8 @@ proc generateCode*(name: ThreadName): NimNode =
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
 
-macro generate*(name: ThreadName): untyped =
-  let name = $name
+macro generate*(name: string): untyped =
+  let name = ThreadName($name)
 
   result = name.generateCode()
 

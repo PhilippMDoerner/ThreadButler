@@ -1,8 +1,8 @@
 import std/[macros, macrocache, strformat]
 import ./utils
 
-type ThreadName* = string
-
+type ThreadName* = distinct string
+proc `==`*(x, y: ThreadName): bool {.borrow.}
 const types = CacheTable"typeTable"
 ## Stores a list of types for a given "threadServer" based on a given name
 ## The procs are stored in a StatementList-NimNode for later retrieval,
@@ -27,6 +27,7 @@ proc firstParamType*(node: NimNode): NimNode =
     else: error("This type of message type is not supported")
 
 proc getRoutes*(name: ThreadName): seq[NimNode] =
+  let name = name.string
   let hasRoutes = routes.hasKey(name)
   if not hasRoutes:
     return @[]
@@ -35,6 +36,7 @@ proc getRoutes*(name: ThreadName): seq[NimNode] =
     result.add(route)
 
 proc getTypes*(name: ThreadName): seq[NimNode] =
+  let name = name.string
   let hasTypes = types.hasKey(name)
   if not hasTypes:
     return @[]
@@ -59,9 +61,9 @@ proc getTypeOfName*(name: ThreadName, typName: string): NimNode =
 
 proc addType*(name: ThreadName, typeDef: NimNode) =
   typeDef.assertKind(nnkTypeDef, "You need a type definition to store a type")
-  let isFirstType = not types.hasKey(name)
+  let isFirstType = not types.hasKey(name.string)
   if isFirstType:
-    types[name] = newStmtList()
+    types[name.string] = newStmtList()
   
   let typeName = typeDef.typeName()
   let isAlreadyRegistered = name.hasTypeOfName(typeName)
@@ -69,7 +71,7 @@ proc addType*(name: ThreadName, typeDef: NimNode) =
     let otherType = name.getTypeOfName(typeName)
     error(fmt"Failed to register '{typeName}' from {typeDef.lineInfo}. A type with that name was already registered (see: {otherType.lineInfo})")
   
-  types[name].add(typeDef)
+  types[name.string].add(typeDef)
 
 proc validateRoute(name: ThreadName, procDef: NimNode) =
   procDef.assertKind(nnkProcDef)
@@ -84,26 +86,29 @@ proc addRoute*(name: ThreadName, procDef: NimNode) =
   
   validateRoute(name, procDef)
   
+  let name = name.string
   let isFirstRoute = not routes.hasKey(name)
   if isFirstRoute:
     routes[name] = newStmtList()
   
   routes[name].add(procDef)
     
-proc hasRoutes*(name: string): bool =
+proc hasRoutes*(name: ThreadName): bool =
   name.getRoutes().len > 0
 
-proc hasTypes*(name: string): bool =
+proc hasTypes*(name: ThreadName): bool =
   name.getTypes().len > 0
 
-proc getRegisteredThreadnames*(): seq[string] =
+proc getRegisteredThreadnames*(): seq[ThreadName] =
   for key, _ in routes:
-    if key notin result:
-      result.add(key)
+    let name = key.ThreadName
+    if name notin result:
+      result.add(name)
 
   for key, _ in types:
-    if key notin result:
-      result.add(key)
+    let name = key.ThreadName
+    if name notin result:
+      result.add(name)
 
 proc debugContent*() =
   echo "Debug"

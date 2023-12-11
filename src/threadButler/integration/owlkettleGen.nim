@@ -61,8 +61,8 @@ macro owlSetup*() =
   when defined(butlerDebug):
     echo result.repr
 
-macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed) =
-  let clientThreadName = $clientThreadName
+macro routingSetup*(clientThreadName: string, widgetNode: typed) =
+  let clientThreadName = ThreadName($clientThreadName)
   let widgetName = $widgetNode
   result = newStmtList()
   
