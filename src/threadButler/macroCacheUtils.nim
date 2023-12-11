@@ -1,4 +1,4 @@
-import std/[macros, macrocache, sequtils, strformat]
+import std/[macros, macrocache, strformat]
 import ./utils
 
 type ThreadName* = string

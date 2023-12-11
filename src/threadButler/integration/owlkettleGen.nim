@@ -53,7 +53,7 @@ proc setup(name: ThreadName): NimNode =
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
 
-macro owlSetup*(): typed =
+macro owlSetup*() =
   result = newStmtList()
   for threadName in getRegisteredThreadnames():
     for node in threadName.setup():
@@ -62,7 +62,7 @@ macro owlSetup*(): typed =
   when defined(butlerDebug):
     echo result.repr
 
-macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed): typed =
+macro routingSetup*(clientThreadName: ThreadName, widgetNode: typed) =
   let clientThreadName = $clientThreadName
   let widgetName = $widgetNode
   result = newStmtList()

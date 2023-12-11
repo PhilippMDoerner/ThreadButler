@@ -66,12 +66,11 @@ macro registerRouteFor*(name: string, input: typed): untyped =
   addRoute(name, procDef)
   
   if input.isDefiningProc():
-    echo "Returning: ", input.repr
     return input ## Necessary so that the defined proc does not "disappear"
 
 proc isDefiningType(node: NimNode): bool = node.kind in [nnkTypeDef, nnkTypeSection, nnkStmtList]
 
-macro registerTypeFor*(name: ThreadName, input: typed): typed =
+macro registerTypeFor*(name: ThreadName, input: typed) =
   ## Registers a type of a message for a given thread with threadButler.
   ## This is used for code-generation with `generate()`
   let name = $name
@@ -134,7 +133,7 @@ proc asVariant(name: string): NimNode =
   if not name.hasTypes():
     let typeName = newIdentNode(name.variantName)
     return quote do:
-      type `typeName` = object 
+      type `typeName` = ref object 
 
   let caseNode = nnkRecCase.newTree(
     nnkIdentDefs.newTree(
