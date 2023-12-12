@@ -4,8 +4,8 @@ import ./threadButler/[codegen, channelHub, events, log]
 ##[
   .. importdoc:: threadButler/integrations/owlCodegen, threadButler/integrations/owlButler
   
-  For integrations see:
-    * ``owlCodegen``
+  For integration utilities with other frameworks see:
+    * [owlCodegen](./threadButler/integrations/owlButler)
 ]##
 
 export 
