@@ -1,5 +1,5 @@
 import threadButler
-import threadButler/integration/owlkettleUtils
+import threadButler/integration/owlButler
 import ./server
 import owlkettle
 import owlkettle/adw

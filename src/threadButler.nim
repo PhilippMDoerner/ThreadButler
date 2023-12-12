@@ -1,6 +1,13 @@
 import std/[options, os]
 import ./threadButler/[codegen, channelHub, events, log]
 
+##[
+  .. importdoc:: threadButler/integrations/owlCodegen, threadButler/integrations/owlButler
+  
+  For integrations see:
+    * ``owlCodegen``
+]##
+
 export 
   codegen.generateSetupCode, 
   codegen.registerRouteFor,

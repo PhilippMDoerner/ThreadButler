@@ -2,10 +2,31 @@ import ../codegen
 import std/[macros]
 import ../register
 
-proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
-  ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".
-  ## `msgVariantTypeName` must be the name of an object variant type.
-  ## The procs body is a gigantic switch-case statement over all kinds of `msgVariantTypeName`
+##[ .. importdoc:: /../codegen.nim
+
+Defines all code for owlkettle-specific code generation.
+This is an extension of the `codegen` module.
+
+.. note:: Only the macros provided here are for documentation purposes.
+
+]##
+
+proc genOwlRouter*(name: ThreadName, widgetName: string): NimNode =
+  ## Generates a proc `routeMessage` for unpacking the object variant type for `name` and calling a handler proc with the unpacked value.
+  ## The variantTypeName is inferred from `name`, see the proc `variantName`_.
+  ## The name of the killKind is inferred from `name`, see the proc `killKindName`_.
+  ## The name of msgField is inferred from `type`, see the proc `fieldName`_.
+  ## The proc is generated based on the registered routes according to this pattern:
+  ## ```
+  ##  proc routeMessage\*(msg: <variantTypeName>, hub: ChannelHub, state: <widgetName>State) =
+  ##    case msg.kind:
+  ##    --- Repeat per route - start ---
+  ##    of <enumKind>:
+  ##      <handlerProc>(msg.<msgField>, hub, state)
+  ##    --- Repeat per route - end ---
+  ##    of <killKind>: shutDownServer()
+  ## ```
+  ## Returns an empty proc if types is empty
 
   result = newProc(name = ident("routeMessage"))
 
@@ -55,6 +76,12 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   result.body.add(caseStmt)
 
 macro generateOwlRouter*(clientThreadName: string, widgetNode: typed) =
+  ## Generates a routing proc for every registered thread.
+  ## The thread `clientThreadName` will generate a special routing proc 
+  ## for the owlkettle client. 
+  ## See also:
+  ## * `genMessageRouter`_ - for specifics for the usual routing proc.
+  ## * `genOwlRouter`_ - for specifics for the owlkettle specific routing proc.
   let clientThreadName = clientThreadName.toThreadName()
   let widgetName = $widgetNode
   result = newStmtList()

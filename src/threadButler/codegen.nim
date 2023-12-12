@@ -3,19 +3,18 @@ import ./utils
 import ./register
 import ./channelHub
 
-## Defines all code for code generation in thread butler.
-## All names of generated types are inferred from the name they are being registered with.
-## All names of fields and enum kinds are inferred based on the data registered.
+##[ .. importdoc::  channelHub.nim
+Defines all code for code generation in threadbutler.
+All names of generated types are inferred from the name they are being registered with.
+All names of fields and enum kinds are inferred based on the data registered.
 
-# TODO: 
-# 5) Add support for running multiple servers - This also requires support for modifying the type-names based on the Server. So Servers should be able to have names which you can use during codegen. Either add names via pragma or as a field
-# 6) Change syntax to be more proc-like - Creating a server creates a server object, you attach routes to it and then start it in the end. You can generate code during this process.
+.. note:: Only the macros provided here are for general use. The procs are only for writing new integrations.
 
-# Cleanup Todo:
+]##
+# Cleanup TODO:
 # 1) Doc Comments on everything
 # 2) Package tests maybe?
 # 3) README.md
-
 proc variantName*(name: ThreadName): string = 
   ## Infers the name of the Message-object-variant-type associated with `name` from `name`
   name.string.capitalize() & "Message"
@@ -51,14 +50,7 @@ proc fieldName*(node: NimNode): string =
 proc extractProcDefs(node: NimNode): seq[NimNode] =
   ## Extracts nnkProcDef-NimNodes from a given node.
   ## Does not extract all nnkProcDef-NimNodes, only those that were added using supported Syntax.
-  ## Supported syntax variations are:
-  ## ```
-  ## 1) myMacro(myProc)
-  ## 2) myMacro():
-  ##      proc myProc1() = <myProc1Implementation>
-  ##      proc myProc2() = <myProc2Implementation>
-  ## 3) proc myProc() {.myMacro.} = <myProcImplementation>
-  ## ```
+  ## For the supported syntax constellations see `registerRouteFor`_
   node.assertKind(@[nnkProcDef, nnkSym, nnkStmtList])
   
   case node.kind:
@@ -103,7 +95,14 @@ proc toThreadName*(node: NimNode): ThreadName =
   
 macro registerRouteFor*(name: string, input: typed) =
   ## Registers a handler proc for `name` with threadButler.
-  ## Supports various syntax-constellations, see `extractProcDefs`.
+  ## Supports usage in various syntax-constellations:
+  ## ```
+  ## 1) registerRouteFor(myProc)
+  ## 2) registerRouteFor():
+  ##      proc myProc1() = <myProc1Implementation>
+  ##      proc myProc2() = <myProc2Implementation>
+  ## 3) proc myProc() {.registerRouteFor.} = <myProcImplementation>
+  ## ```
   ## This does not change or remove any proc definitions this macro is applied to.
   ## Registered procs are used for code-generation with various macros, e.g. `generate`. 
   ## This does not generate code on its own.
@@ -136,16 +135,7 @@ macro registerRouteFor*(name: string, input: typed) =
 proc extractTypeDefs(node: NimNode): seq[NimNode] =
   ## Extracts nnkTypeDef-NimNodes from a given node.
   ## Does not extract all nnkTypeDef-NimNodes, only those that were added using supported Syntax.
-  ## Supported syntax variations are:
-  ## ```
-  ## 1) myMacro(myType)
-  ## 2) myMacro():
-  ##      type myType1 = <myTypeDef1>
-  ## 3) myMacro():
-  ##      type 
-  ##        myType1 = <myTypeDef1>
-  ##        myType2 = <myTypeDef2>  
-  ## ```
+  ## For the supported syntax constellations see `registerTypeFor`_
   node.assertKind(@[nnkTypeDef, nnkSym, nnkStmtList])
 
   case node.kind:
@@ -176,7 +166,16 @@ proc extractTypeDefs(node: NimNode): seq[NimNode] =
 macro registerTypeFor*(name: string, input: typed) =
   ## Registers a type of a message for `name` with threadButler.
   ## This does not change or remove any type definition this macro is applied to.
-  ## Supports various syntax-constellations, see `extractTypeDefs`.
+  ## Supported syntax variations are:
+  ## ```
+  ## 1) registerTypeFor(myType)
+  ## 2) registerTypeFor():
+  ##      type myType1 = <myTypeDef1>
+  ## 3) registerTypeFor():
+  ##      type 
+  ##        myType1 = <myTypeDef1>
+  ##        myType2 = <myTypeDef2>  
+  ## ```
   ## Registered types are used for code-generation with various macros, e.g. `generate`.
   ## This does not generate code on its own.
   input.expectKind(
@@ -310,7 +309,7 @@ proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNod
   ##    --- Repeat per route - end ---
   ##    of <killKind>: shutDownServer()
   ## ```
-  ## Returns an empty proc if types is empty
+  ## This proc should only be used by macros in this and other integration modules.
   result = newProc(name = postfix(ident("routeMessage"), "*"))
   let msgParamName = "msg"
   let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
@@ -426,7 +425,7 @@ proc genSendKillMessageProc*(name: ThreadName): NimNode =
   ## Generates a proc `sendKillMessage`
   ## These procs send a message that triggers the graceful shutdown of a thread.
   ## The thread to send the message to is inferred based on the object-variant for messages to that thread.
-  ## The name of the object-variant is inferred from `name` via `asVariant`_.
+  ## The name of the object-variant is inferred from `name` via `variantName`_.
   let variantType = newIdentNode(name.variantName)
   let killKind = newIdentNode(name.killKindName)
   let senderProcName = newIdentNode(channelHub.SEND_PROC_NAME) # This string depends on the name 
@@ -460,13 +459,13 @@ macro generateSetupCode*() =
   ## Generates all types and procs needed for message-passing for `name`:
   ## 1) An enum based representing all different types of messages that can be sent to the thread `name`.
   ## 2) An object variant that wraps any message to be sent through a channel to the thread `name`.
-  ## 3) Generic procs for sending messages to `name` by:
+  ## 3) Generic `sendMessage` procs for sending messages to `name` by:
   ##      - receiving a message-type
   ##      - wrapping it in the object variant from 2)
   ##      - sending that to a channel to the thread `name`.
-  ## 4) Specific procs for sending a "kill" message to `name`
-  ## 5) A proc to instantiate a ChannelHub
-  ## 6) A proc to destroy a ChannelHub
+  ## 4) Specific `sendKillMessage` procs for sending a "kill" message to `name`
+  ## 5) A `new(ChannelHub)` proc to instantiate a ChannelHub
+  ## 6) A `destroy` proc to destroy a ChannelHub
   ## 
   ## Note, this does not include a proc for routing. See `generateRouters`_
   result = newStmtList()
@@ -481,6 +480,8 @@ macro generateSetupCode*() =
     echo result.repr
     
 macro generateRouters*() =
+  ## Generates a routing proc for every registered thread.
+  ## See `genMessageRouter`_ for specifics.
   result = newStmtList()
   
   for threadName in getRegisteredThreadnames():
