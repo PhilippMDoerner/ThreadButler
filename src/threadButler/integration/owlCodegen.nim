@@ -1,6 +1,6 @@
 import ../codegen
 import std/[macros]
-import ../macroCacheUtils
+import ../register
 
 proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   ## Generates "proc routeMessage(msg: `msgVariantTypeName`, hub: ChannelHub)".

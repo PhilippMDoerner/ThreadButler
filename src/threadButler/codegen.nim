@@ -1,6 +1,6 @@
 import std/[macros, tables, strformat, strutils, unicode, sequtils]
 import ./utils
-import ./macroCacheUtils
+import ./register
 import ./channelHub
 
 ## Defines all code for code generation in thread butler.
