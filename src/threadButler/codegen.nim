@@ -168,9 +168,9 @@ proc extractTypeDefs(node: NimNode): seq[NimNode] =
           result.add(subSubNode)
           
       else:
-        error(fmt"'typ' macro does not support inner node of kind '{subNode.kind}'")
+        error(fmt"Inner node of kind '{subNode.kind}' is not supported!")
   else:
-    error(fmt"'typ' macro does not support kind '{node.kind}'")
+    error(fmt"Node of kind '{node.kind}' not supported!")
   
 
 macro registerTypeFor*(name: string, input: typed) =
@@ -411,7 +411,7 @@ proc genDestroyChannelHubProc*(): NimNode =
   let hubParam = newIdentNode("hub")
   result = quote do:
     proc destroy*(`hubParam`: ChannelHub) =
-      debug "Destroying Channelhub"
+      notice "Destroying Channelhub"
   
   for threadName in getRegisteredThreadnames():
     let variantType = newIdentNode(threadName.variantName)
