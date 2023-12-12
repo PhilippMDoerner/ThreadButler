@@ -2,7 +2,7 @@ import ../codegen
 import std/[macros]
 import ../register
 
-##[ .. importdoc:: /../codegen.nim
+##[
 
 Defines all code for owlkettle-specific code generation.
 This is an extension of the `codegen` module.

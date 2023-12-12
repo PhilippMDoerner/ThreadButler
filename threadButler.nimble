@@ -53,6 +53,6 @@ task exampleList, "list all available examples":
     echo file
     
 task docs, "Generate the nim docs":
-  exec"nim doc --outdir:./src/htmldocs/threadButler/integrations --index:on ./src/threadButler/integration/owlButler.nim"
-  exec"nim doc --outdir:./src/htmldocs/threadButler/integrations --index:on ./src/threadButler/integration/owlCodegen.nim"
-  exec"nim doc --project --index:on src/threadButler.nim"
+  exec"nim doc --outdir:./docs/htmldocs/threadButler/integrations --index:on ./src/threadButler/integration/owlButler.nim"
+  exec"nim doc --outdir:./docs/htmldocs/threadButler/integrations --index:on ./src/threadButler/integration/owlCodegen.nim"
+  exec"nim doc --project --index:on --outdir:./docs/htmldocs src/threadButler.nim"
