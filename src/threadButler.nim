@@ -22,8 +22,7 @@ type ServerData*[Msg] = object
   shutDown*: seq[Event]
 
 
-## TODO: Got to think here, how do you figure out for a given server what object variant they're associated with?
-proc runServer*[Msg](data: ServerData[Msg]): Thread[ServerData[Msg]] =
+proc run*[Msg](data: ServerData[Msg]): Thread[ServerData[Msg]] =
   mixin routeMessage
 
   proc serverLoop(data: ServerData[Msg]) {.gcsafe.}=
@@ -46,3 +45,12 @@ proc runServer*[Msg](data: ServerData[Msg]): Thread[ServerData[Msg]] =
     data.shutDown.execEvents()
 
   system.createThread(result, serverLoop, data)
+
+template withServer*[Msg](server: ServerData[Msg], body: untyped) =
+  mixin sendKillMessage
+  let thread: Thread[ServerData[Msg]] = server.run()
+  
+  body
+  
+  server.hub.sendKillMessage(Msg.type)
+  joinThread(thread)

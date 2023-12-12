@@ -26,7 +26,7 @@ generateRouter()
 
 proc main() =
   let hub = new(ChannelHub)
-  let data: ServerData[ServerMessage] = ServerData[ServerMessage](
+  let server: ServerData[ServerMessage] = ServerData[ServerMessage](
     hub: hub,
     msgType: default(ServerMessage),
     sleepMs: 10,
@@ -37,28 +37,26 @@ proc main() =
     shutDown: @[initEvent(() => debug "Server shutting down!")]
   )
   
-  let thread: Thread[ServerData[ServerMessage]] = data.runServer()
+  withServer(server):
+    while true:
+      echo "\nType in a message to send to the Backend!"
+      let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
+      if terminalInput == "kill":
+        hub.sendKillMessage(ServerMessage)
+        break
+      
+      elif terminalInput.len() > 0:
+        let msg = terminalInput.Request
+        discard hub.sendMessage(msg)
+      
+      ## Guarantees that we'll have the response from server before we listen for user input again. 
+      ## This is solely for better logging, do not use in actual code.
+      sleep(100) 
+      
+      let response: Option[ClientMessage] = hub.readMsg(ClientMessage)
+      if response.isSome():
+        routeMessage(response.get(), hub)
 
-  while true:
-    echo "\nType in a message to send to the Backend!"
-    let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
-    if terminalInput == "kill":
-      hub.sendKillMessage(ServerMessage)
-      break
-    
-    elif terminalInput.len() > 0:
-      let msg = terminalInput.Request
-      discard hub.sendMessage(msg)
-    
-    ## Guarantees that we'll have the response from server before we listen for user input again. 
-    ## This is solely for better logging, do not use in actual code.
-    sleep(100) 
-    
-    let response: Option[ClientMessage] = hub.readMsg(ClientMessage)
-    if response.isSome():
-      routeMessage(response.get(), hub)
-
-  joinThread(thread)
   destroy(hub)
 
 main()

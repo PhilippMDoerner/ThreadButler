@@ -50,18 +50,5 @@ proc initServer*[Msg](
     shutDown: shutdownEvents
   )
 
-template withServer*[Msg](
-  data: ServerData[Msg],
-  body: untyped
-) =
-  mixin sendKillMessage
-  let thread: Thread[ServerData[Msg]] = runServer(data)
-
-  body
-  
-  data.hub.sendKillMessage(Msg.type)
-  joinThread(thread)
-  data.hub.destroy()
-  
 template sendMessageToServer*(server: ServerData[typed], msg: auto): bool =
   server.hub.sendMessage(msg)
