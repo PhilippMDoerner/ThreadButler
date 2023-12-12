@@ -26,7 +26,7 @@ generateRouter()
 
 proc main() =
   let hub = new(ChannelHub)
-  let server: ServerData[ServerMessage] = ServerData[ServerMessage](
+  let server = Server[ServerMessage](
     hub: hub,
     msgType: default(ServerMessage),
     sleepMs: 10,

@@ -54,19 +54,7 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
   
   result.body.add(caseStmt)
 
-macro owlSetup*() =
-  result = newStmtList()
-  for threadName in getRegisteredThreadnames():
-    for node in threadName.generateCode():
-      result.add(node)
-  
-  result.add(genNewChannelHubProc())
-  result.add(genDestroyChannelHubProc())
-  
-  when defined(butlerDebug):
-    echo result.repr
-
-macro routingSetup*(clientThreadName: string, widgetNode: typed) =
+macro generateOwlRouter*(clientThreadName: string, widgetNode: typed) =
   let clientThreadName = clientThreadName.toThreadName()
   let widgetName = $widgetNode
   result = newStmtList()

@@ -4,11 +4,11 @@ import ./owlCodegen
 import ../channelHub
 import ../../threadButler
 
-export owlSetup, routingSetup
+export generateOwlRouter
 
 proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
   app: OwlkettleApp, 
-  data: ServerData[SMsg],
+  data: Server[SMsg],
   clientMsgType: typedesc[CMsg]
 ) =  
   ## Adds a callback function to the GTK app that checks every 5 ms whether the 
@@ -26,10 +26,6 @@ proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
 
   discard addGlobalTimeout(data.sleepMs, listener)
 
-# proc addClientSender*[SMsg, CMsg](data: ServerData[SMsg, CMsg]) =
-#   proc sender(): bool =
-    
-
 template createListenerEvent*(data: typed, stateType: typedesc, clientmsgType: typedesc): ApplicationEvent =
   ## Creates an Owlkettle.ApplicationEvent when starting up the application.
   ## This enables owlkettle to listen for messages received from the server
@@ -38,17 +34,6 @@ template createListenerEvent*(data: typed, stateType: typedesc, clientmsgType: t
     let state = stateType(state)
     addServerListener(state, data, clientmsgType)
 
-proc initServer*[Msg](
-  shutdownEvents: seq[events.Event] = @[],
-  startupEvents: seq[events.Event] = @[],
-  sleepInMs: int = 0
-): ServerData[Msg] =
-  ServerData[Msg](
-    hub: new(ChannelHub),
-    sleepMs: sleepInMs,
-    startUp: startupEvents,
-    shutDown: shutdownEvents
-  )
 
-template sendMessageToServer*(server: ServerData[typed], msg: auto): bool =
+template sendMessageToServer*(server: Server[typed], msg: auto): bool =
   server.hub.sendMessage(msg)

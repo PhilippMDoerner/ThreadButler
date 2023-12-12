@@ -1,5 +1,4 @@
 import threadButler
-import threadButler/integration/owlkettleUtils
 import std/[logging, strformat, sugar]
 
 const CLIENT_THREAD_NAME* = "client"
@@ -11,18 +10,19 @@ registerTypeFor(CLIENT_THREAD_NAME):
 registerTypeFor(SERVER_THREAD_NAME):
   type Request* = distinct string
 
-owlSetup()
+generateSetupCode()
 
 proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} = 
   let resp = Response(fmt("Response to: {msg.string}"))
   discard hub.sendMessage(resp)
 
-proc initOwlBackend*[Msg](): ServerData[Msg] =  
-  result = initServer[Msg](
-    startupEvents = @[
+proc newSingleServer*[Msg](): Server[Msg] =  
+  result = Server[Msg](
+    hub: new(ChannelHub),
+    startUp: @[
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ],
-    shutdownEvents = @[initEvent(() => debug "Server shutting down!")],
-    sleepInMs = 0
-  )
+    shutDown: @[initEvent(() => debug "Server shutting down!")],
+    sleepMs: 0
+  ) 
