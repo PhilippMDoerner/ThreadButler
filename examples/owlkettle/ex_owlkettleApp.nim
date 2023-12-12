@@ -51,6 +51,9 @@ proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) {.registerR
 
 routingSetup("client", App)
 
+## TODO: Make it so that closing the owlkettle client also kills the server.
+## WithServer should send some kind of kill-message after the while-loop
+
 ## Main
 proc main() =
   # Server

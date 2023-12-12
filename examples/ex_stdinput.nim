@@ -13,8 +13,7 @@ registerTypeFor(SERVER_THREAD_NAME):
   type Request = distinct string
   type KillMessage = object
 
-generate(SERVER_THREAD_NAME)
-generate(CLIENT_THREAD_NAME)
+generateTypes()
 
 registerRouteFor(SERVER_THREAD_NAME):
   proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
@@ -27,15 +26,12 @@ proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: SERV
 proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: CLIENT_THREAD_NAME.} =
   debug "On Client: ", msg.string
 
-generateRouter(SERVER_THREAD_NAME)
-generateRouter(CLIENT_THREAD_NAME)
+generateRouter()
 
 proc main() =
   var hub = new(ChannelHub)
-  hub.addChannel(ServerMessage)
-  hub.addChannel(ClientMessage)
   let sleepMs = 10
-  var data: ServerData[ServerMessage] = ServerData[ServerMessage](
+  let data: ServerData[ServerMessage] = ServerData[ServerMessage](
     hub: hub,
     msgType: default(ServerMessage),
     sleepMs: sleepMs,
@@ -68,5 +64,6 @@ proc main() =
       routeMessage(response.get(), hub)
 
   joinThread(thread)
+  destroy(hub)
 
 main()

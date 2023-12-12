@@ -164,3 +164,6 @@ proc getRegisteredThreadnames*(): seq[ThreadName] =
     let name = key.ThreadName
     if name notin result:
       result.add(name)
+
+
+# TODO: Rename to "register"

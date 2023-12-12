@@ -67,7 +67,10 @@ macro owlSetup*() =
   for threadName in getRegisteredThreadnames():
     for node in threadName.generateOwlCode():
       result.add(node)
-      
+  
+  result.add(genNewChannelHubProc())
+  result.add(genDestroyChannelHubProc())
+  
   when defined(butlerDebug):
     echo result.repr
 

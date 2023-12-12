@@ -1,4 +1,4 @@
-import std/[macros, strformat, strutils, unicode, sequtils]
+import std/[macros, tables, strformat, strutils, unicode, sequtils]
 import ./utils
 import ./macroCacheUtils
 import ./channelHub
@@ -351,6 +351,51 @@ proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
       return hub.`senderProcName`(msgWrapper)
 
+proc genNewChannelHubProc*(): NimNode =
+  ## Generates a proc `new` for instantiating a ChannelHub
+  ## with a channel to send messages to each thread.
+  ## Uses `addChannel`_ to instantiate, open and add a channel.
+  ## Uses `variantName`_ to infer the name Message-object-variant-type.
+  ## The proc is generated based on the registered threadnames according to this pattern:
+  ## ```
+  ##  proc new\*(t: typedesc[ChannelHub]): ChannelHub =
+  ##    result = ChannelHub(channels: initTable[pointer, pointer]())
+  ##    --- Repeat per threadname - start ---
+  ##    result.addChannel(<variantName>)
+  ##    --- Repeat per threadname - end ---
+  ## ```
+  result = quote do:
+    proc new*(t: typedesc[ChannelHub]): ChannelHub =
+      result = ChannelHub(channels: initTable[pointer, pointer]())
+  
+  for threadName in getRegisteredThreadnames():
+    let variantType = newIdentNode(threadName.variantName)
+    let addChannelLine = quote do:
+      result.addChannel(`variantType`)
+    result.body.add(addChannelLine)
+
+proc genDestroyChannelHubProc*(): NimNode =
+  ## Generates a proc `destroy` for destroying a ChannelHub.
+  ## Closes each channel stored in the hub as part of that.
+  ## Uses `variantName`_ to infer the name Message-object-variant-type.
+  ## The proc is generated based on the registered threadnames according to this pattern:
+  ## ```
+  ##  proc destroy\*(hub: ChannelHub) =
+  ##    --- Repeat per threadname - start ---
+  ##    hub.getChannel(<variantName>).close()
+  ##    --- Repeat per threadname - end ---
+  ## ```
+  let hubParam = newIdentNode("hub")
+  result = quote do:
+    proc destroy*(`hubParam`: ChannelHub) =
+      debug "Destroying Channelhub"
+  
+  for threadName in getRegisteredThreadnames():
+    let variantType = newIdentNode(threadName.variantName)
+    let closeChannelLine = quote do:
+      `hubParam`.getChannel(`variantType`).close()
+    
+    result.body.add(closeChannelLine)
 
 proc generateCode(name: ThreadName): NimNode =
   result = newStmtList()
@@ -366,7 +411,7 @@ proc generateCode(name: ThreadName): NimNode =
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
 
-macro generate*(name: string): untyped =
+macro generateTypes*() =
   ## Generates all types and procs needed for message-passing for `name`:
   ## 1) An enum based representing all different types of messages that can be sent to the thread `name`.
   ## 2) An object variant that wraps any message to be sent through a channel to the thread `name`.
@@ -378,17 +423,23 @@ macro generate*(name: string): untyped =
   ##      - receiving a message-type
   ##      - wrapping it in the object variant from 2)
   ##      - sending that to a channel to the thread `name`.
-  let name: ThreadName = name.toThreadName()
-
-  result = name.generateCode()
-
+  result = newStmtList()
+  for threadName in getRegisteredThreadnames():
+    for node in threadName.generateCode():
+      result.add(node)
+  
+  result.add(genNewChannelHubProc())
+  result.add(genDestroyChannelHubProc())
+  
   when defined(butlerDebug):
     echo result.repr
     
-macro generateRouter*(name: string) =
-  let name: ThreadName = name.toThreadName()
-
-  result = name.genMessageRouter(name.getRoutes(), name.getTypes())
+macro generateRouter*() =
+  result = newStmtList()
   
+  for threadName in getRegisteredThreadnames():
+    let routingProc = threadName.genMessageRouter(threadName.getRoutes(), threadName.getTypes())
+    result.add(routingProc)
+        
   when defined(butlerDebug):
     echo result.repr

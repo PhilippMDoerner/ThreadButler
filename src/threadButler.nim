@@ -2,7 +2,7 @@ import std/[options, os]
 import ./threadButler/[codegen, channelHub, events, log]
 
 export 
-  codegen.generate, 
+  codegen.generateTypes, 
   codegen.registerRouteFor,
   codegen.registerTypeFor,
   codegen.generateRouter
@@ -23,9 +23,7 @@ type ServerData*[Msg] = object
 
 
 ## TODO: Got to think here, how do you figure out for a given server what object variant they're associated with?
-proc runServer*[Msg](
-  data: var ServerData[Msg],
-): Thread[ServerData[Msg]] =
+proc runServer*[Msg](data: ServerData[Msg]): Thread[ServerData[Msg]] =
   mixin routeMessage
 
   proc serverLoop(data: ServerData[Msg]) {.gcsafe.}=

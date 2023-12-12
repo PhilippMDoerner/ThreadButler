@@ -1,15 +1,9 @@
-import std/[strformat, options, tables, sequtils]
+import std/[strformat, options, tables]
 import ./log
 
-## TODO: Implement ChannelHub as a Table[pointer, pointer] where the first pointer is a getTypeInfo() value from a generated object variant and the second pointer is a pointer to a Channel.
-
 type ChannelHub* = ref object
-  channels: Table[pointer, pointer]
+  channels*: Table[pointer, pointer]
   
-proc new*(t: typedesc[ChannelHub]): ChannelHub =
-  result = ChannelHub()
-  # TODO: likely needs to be generated in order to add one channel per
-
 proc addChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]) =
   let key: pointer = default(Msg).getTypeInfo()
   var channel {.global.}: Channel[Msg]
@@ -20,10 +14,6 @@ proc addChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]) =
 proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): var Channel[Msg] =
   let key: pointer = default(t).getTypeInfo()
   return cast[ptr Channel[Msg]](hub.channels[key])[]
-
-proc destroy*(hub: ChannelHub) = discard
-  # for key in hub.channels.keys:
-  #   hub.channels[key].close()
   
 proc debugLog[Msg](msg: Msg, hub: ChannelHub, success: bool) =
   let channelPtr = cast[uint64](hub.getChannel(Msg).addr)
