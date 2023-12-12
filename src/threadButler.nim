@@ -39,10 +39,10 @@ proc runServer*[Msg](data: ServerData[Msg]): Thread[ServerData[Msg]] =
           break
         
         except Exception as e:
-          log.warn("Encountered Exception: " & e.repr)
+          log.error(fmt"Message '{msg.get().repr}' Caused exception: " & e.repr)
 
       sleep(data.sleepMs)
   
     data.shutDown.execEvents()
 
-  createThread(result, serverLoop, data)
+  system.createThread(result, serverLoop, data)
