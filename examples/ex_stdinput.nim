@@ -24,10 +24,30 @@ proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: 
 
 generateRouter()
 
+proc runClientLoop(hub: ChannelHub) =
+  while true:
+    echo "\nType in a message to send to the Backend!"
+    let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
+    if terminalInput == "kill":
+      hub.sendKillMessage(ServerMessage)
+      break
+    
+    elif terminalInput.len() > 0:
+      let msg = terminalInput.Request
+      discard hub.sendMessage(msg)
+    
+    ## Guarantees that we'll have the response from server before we listen for user input again. 
+    ## This is solely for better logging, do not use in actual code.
+    sleep(100) 
+    
+    let response: Option[ClientMessage] = hub.readMsg(ClientMessage)
+    if response.isSome():
+      routeMessage(response.get(), hub)
+
+
 proc main() =
-  let hub = new(ChannelHub)
   let server = Server[ServerMessage](
-    hub: hub,
+    hub: new(ChannelHub),
     msgType: default(ServerMessage),
     sleepMs: 10,
     startUp: @[
@@ -38,25 +58,8 @@ proc main() =
   )
   
   withServer(server):
-    while true:
-      echo "\nType in a message to send to the Backend!"
-      let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
-      if terminalInput == "kill":
-        hub.sendKillMessage(ServerMessage)
-        break
-      
-      elif terminalInput.len() > 0:
-        let msg = terminalInput.Request
-        discard hub.sendMessage(msg)
-      
-      ## Guarantees that we'll have the response from server before we listen for user input again. 
-      ## This is solely for better logging, do not use in actual code.
-      sleep(100) 
-      
-      let response: Option[ClientMessage] = hub.readMsg(ClientMessage)
-      if response.isSome():
-        routeMessage(response.get(), hub)
-
-  destroy(hub)
+    runClientLoop(server.hub)
+  
+  destroy(server.hub)
 
 main()
