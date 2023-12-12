@@ -14,10 +14,14 @@ proc addChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]) =
 proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): var Channel[Msg] =
   let key: pointer = default(t).getTypeInfo()
   return cast[ptr Channel[Msg]](hub.channels[key])[]
-  
+
 proc debugLog[Msg](msg: Msg, hub: ChannelHub, success: bool) =
   let channelPtr = cast[uint64](hub.getChannel(Msg).addr)
-  debug fmt"send {getThreadId()} => {channelPtr}: {msg.repr}"
+  let msg = fmt"Thread '{getThreadId()}' => {msg.repr}"
+  if success:
+    debug fmt"send: {msg}"
+  else:
+    error fmt"failed to send: {msg}"
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: Msg): bool =
@@ -27,7 +31,7 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: Msg): bool =
 
 proc debugReadLog[Msg](msg: Msg, hub: ChannelHub) =
   let channelPtr = cast[uint64](hub.getChannel(Msg).addr)
-  debug fmt"read {getThreadId()} <= {channelPtr}: {msg.repr}"
+  debug fmt"read: Thread '{getThreadId()}' <= {msg.repr}"
 
 proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
   var channel = hub.getChannel(Msg)
