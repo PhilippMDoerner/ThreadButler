@@ -1,64 +1,54 @@
-import std/[strformat, options]
+import std/[strformat, options, tables, sequtils]
 import ./log
 
-type ChannelHub*[SMsg, CMsg] = ref object
-  serverChannel: Channel[SMsg] ## For server to receive messages to, ServerMessages get sent to server
-  clientChannel: Channel[CMsg] ## For client to receive messages to, Clientmessages get sent to client
+## TODO: Implement ChannelHub as a Table[pointer, pointer] where the first pointer is a getTypeInfo() value from a generated object variant and the second pointer is a pointer to a Channel.
 
-proc new*[SMsg, CMsg](t: typedesc[ChannelHub[SMsg, CMsg]]): ChannelHub[SMsg, CMsg] =
-  result = ChannelHub[SMsg, CMsg]()
-  result.serverChannel.open()
-  result.clientChannel.open()
+type ChannelHub* = ref object
+  channels: Table[pointer, pointer]
   
-proc destroy*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]) =
-  hub.serverChannel.close()
-  hub.clientChannel.close()
-  
-proc debugLog[SMsg, CMsg](msg: SMsg | CMsg, success: bool) =
-  debug when msg.typeOf() is CMsg:
-      if success: 
-        fmt"send client <= server: {msg.repr}"
-      else: 
-        fmt"Failed to send client <= server: {msg.repr}"
-    else:
-      if success: 
-        fmt"send client => server: {msg.repr}"
-      else: 
-        fmt"Failed to send client => server: {msg.repr}"
+proc new*(t: typedesc[ChannelHub]): ChannelHub =
+  result = ChannelHub()
+  # TODO: likely needs to be generated in order to add one channel per
 
-const SEND_PROC_NAME* = "sendMsgToServer"
-proc sendMsgToServer*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: CMsg | SMsg): bool =
-  let success = when msg.typeOf() is CMSg:
-      hub.clientChannel.trySend(msg)
-    elif msg.typeOf() is SMSg:
-      hub.serverChannel.trySend(msg)
-    else:
-      error("Invalid")
+proc addChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]) =
+  let key: pointer = default(Msg).getTypeInfo()
+  var channel {.global.}: Channel[Msg]
+  channel.open
+  hub.channels[key] = channel.addr
+  debug fmt"Added: {$t} - {cast[uint64](channel.addr)}"
 
-  debugLog[SMsg, CMsg](msg, success)
+proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): var Channel[Msg] =
+  let key: pointer = default(t).getTypeInfo()
+  return cast[ptr Channel[Msg]](hub.channels[key])[]
+
+proc destroy*(hub: ChannelHub) = discard
+  # for key in hub.channels.keys:
+  #   hub.channels[key].close()
   
+proc debugLog[Msg](msg: Msg, hub: ChannelHub, success: bool) =
+  let channelPtr = cast[uint64](hub.getChannel(Msg).addr)
+  debug fmt"send {getThreadId()} => {channelPtr}: {msg.repr}"
+
+const SEND_PROC_NAME* = "sendMsgToChannel"
+proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: Msg): bool =
+  let success = hub.getChannel(Msg).trySend(msg)
+  debugLog(msg, hub, success)
   return success
 
-proc readMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], resp: typedesc[CMsg]): Option[CMsg] =
-  let response: tuple[dataAvailable: bool, msg: CMsg] = hub.clientChannel.tryRecv()
+proc debugReadLog[Msg](msg: Msg, hub: ChannelHub) =
+  let channelPtr = cast[uint64](hub.getChannel(Msg).addr)
+  debug fmt"read {getThreadId()} <= {channelPtr}: {msg.repr}"
+
+proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
+  var channel = hub.getChannel(Msg)
+  
+  let response: tuple[dataAvailable: bool, msg: Msg] = hub.getChannel(Msg).tryRecv()
   
   result = if response.dataAvailable:
-      debug fmt"read client <= server: {response.msg.repr}"
+      debugReadLog(response.msg, hub)
       some(response.msg)
     else:
-      none(CMsg)
+      none(Msg)
 
-proc readMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], resp: typedesc[SMsg]): Option[SMsg] =
-  let response: tuple[dataAvailable: bool, msg: SMsg] = hub.serverChannel.tryRecv()
-
-  result = if response.dataAvailable:
-      debug fmt"read client => server: {response.msg.repr}"
-      some(response.msg)
-    else:
-      none(SMsg)
-    
-proc hasServerMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): bool =
-  hub.serverChannel.peek() > 0
-  
-proc hasClientMsg*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg]): bool =
-  hub.serverChannel.peek() > 0
+proc hasMsg*[Msg](hub: ChannelHub): bool =
+  hub.getChannel(Msg).peek() > 0

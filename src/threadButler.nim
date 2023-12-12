@@ -4,7 +4,8 @@ import ./threadButler/[codegen, channelHub, events, log]
 export 
   codegen.generate, 
   codegen.registerRouteFor,
-  codegen.registerTypeFor
+  codegen.registerTypeFor,
+  codegen.generateRouter
 export channelHub
 export events
 
@@ -13,25 +14,28 @@ proc shutdownServer*() =
   ## Triggers the shut down of the server
   raise newException(KillError, "Shutdown")
   
-type ServerData*[SMsg, CMsg] = object
-  hub*: ChannelHub[SMsg, CMsg]
-  sleepMs*: int # Reduces stress on CPU when idle, increase when higher latency is acceptable for even better idle efficiency
+type ServerData*[Msg] = object
+  hub*: ChannelHub
+  msgType*: Msg
+  sleepMs*: int # Reduces stress on CPU when idle, increase when higher latency is acceptable for better idle efficiency
   startUp*: seq[Event]
   shutDown*: seq[Event]
 
-proc runServer*[SMsg, CMsg](
-  data: var ServerData[SMsg, CMsg]
-): Thread[ServerData[SMsg, CMsg]] =
+
+## TODO: Got to think here, how do you figure out for a given server what object variant they're associated with?
+proc runServer*[Msg](
+  data: var ServerData[Msg],
+): Thread[ServerData[Msg]] =
   mixin routeMessage
 
-  proc serverLoop(data: ServerData[SMsg, CMsg]) {.gcsafe.}=
+  proc serverLoop(data: ServerData[Msg]) {.gcsafe.}=
     data.startUp.execEvents()
     
     while true:
-      let msg: Option[SMsg] = data.hub.readMsg(SMSg)
+      let msg: Option[Msg] = data.hub.readMsg(Msg)
       if msg.isSome():
         try:
-          routeMessage[SMsg, CMSg](msg.get(), data.hub)
+          routeMessage(msg.get(), data.hub)
         
         except KillError:
           break

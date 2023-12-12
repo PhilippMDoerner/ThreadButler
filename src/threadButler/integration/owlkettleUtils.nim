@@ -8,16 +8,17 @@ export owlSetup, routingSetup
 
 proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
   app: OwlkettleApp, 
-  data: ServerData[SMsg, CMsg]
+  data: ServerData[SMsg],
+  clientMsgType: typedesc[CMsg]
 ) =  
   ## Adds a callback function to the GTK app that checks every 5 ms whether the 
   ## server sent a new message. Triggers a UI update if that is the case.
   mixin routeMessage
-  let hub: ChannelHub[SMsg, CMsg] = data.hub
+  let hub: ChannelHub = data.hub
   proc listener(): bool =
-    let msg = data.hub.readMsg(CMsg)
+    let msg = data.hub.readMsg(clientMsgType)
     if msg.isSome():
-      routeMessage[SMsg, CMsg](msg.get(), hub, app)
+      routeMessage(msg.get(), hub, app)
       discard app.redraw()
     
     const KEEP_LISTENER_ACTIVE = true
@@ -29,36 +30,36 @@ proc addServerListener*[OwlkettleApp: Viewable, SMsg, CMsg](
 #   proc sender(): bool =
     
 
-template createListenerEvent*(data: typed, stateType: typedesc): ApplicationEvent =
+template createListenerEvent*(data: typed, stateType: typedesc, clientmsgType: typedesc): ApplicationEvent =
   ## Creates an Owlkettle.ApplicationEvent when starting up the application.
   ## This enables owlkettle to listen for messages received from the server
   ## and store them in the application's WidgetState.
   proc(state: WidgetState) =
     let state = stateType(state)
-    addServerListener(state, data)
+    addServerListener(state, data, clientmsgType)
 
-proc initServer*[SMsg, CMsg](
+proc initServer*[Msg](
   shutdownEvents: seq[events.Event] = @[],
   startupEvents: seq[events.Event] = @[],
   sleepInMs: int = 0
-): ServerData[SMsg, CMsg] =
-  ServerData[SMsg, CMsg](
-    hub: new(ChannelHub[SMsg, CMsg]),
+): ServerData[Msg] =
+  ServerData[Msg](
+    hub: new(ChannelHub),
     sleepMs: sleepInMs,
     startUp: startupEvents,
     shutDown: shutdownEvents
   )
 
-template withServer*(
-  data: var ServerData[typed, typed],
+template withServer*[Msg](
+  data: var ServerData[Msg],
   body: untyped
 ) =
-  let thread: Thread[ServerData[typed, typed]] = runServer(data)
+  let thread: Thread[ServerData[Msg]] = runServer(data)
 
   body
   
   joinThread(thread)
   data.hub.destroy()
   
-template sendMessageToServer*(server: ServerData[typed, typed], msg: auto): bool =
+template sendMessageToServer*(server: ServerData[typed], msg: auto): bool =
   server.hub.sendMessage(msg)

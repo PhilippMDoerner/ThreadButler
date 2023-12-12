@@ -11,14 +11,14 @@ registerTypeFor(CLIENT_THREAD_NAME):
 registerTypeFor(SERVER_THREAD_NAME):
   type Request* = distinct string
 
+owlSetup()
+
 proc handleRequest*(msg: Request, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} = 
   let resp = Response(fmt("Response to: {msg.string}"))
   discard hub.sendMessage(resp)
 
-# registerRouteFor(SERVER_THREAD_NAME, handleRequest)
-
-proc initOwlBackend*[SMsg, CMsg](): ServerData[SMsg, CMsg] =  
-  result = initServer[SMsg, CMsg](
+proc initOwlBackend*[Msg](): ServerData[Msg] =  
+  result = initServer[Msg](
     startupEvents = @[
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")

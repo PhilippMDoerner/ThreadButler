@@ -7,10 +7,8 @@ import std/[options, logging, strformat]
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
-owlSetup()
-
 viewable App:
-  server: ServerData[ServerMessage, ClientMessage]
+  server: ServerData[ServerMessage]
   inputText: string
   receivedMessages: seq[string]
 
@@ -56,10 +54,11 @@ routingSetup("client", App)
 ## Main
 proc main() =
   # Server
-  var server = initOwlBackend[ServerMessage, ClientMessage]()
-  
+  var server = initOwlBackend[ServerMessage]()
+  server.hub.addChannel(ServerMessage)
+  server.hub.addChannel(ClientMessage)
   withServer(server):
-    let listener = createListenerEvent(server, AppState)
+    let listener = createListenerEvent(server, AppState, ClientMessage)
     var appWidget = gui(App(server = server))
     
     adw.brew(

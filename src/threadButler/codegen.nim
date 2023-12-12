@@ -233,7 +233,7 @@ proc asVariant*(name: ThreadName, types: seq[NimNode] ): NimNode =
   ## The variant is generated according to the pattern:
   ## ```
   ##  type <name>Message = ref object
-  ##    case kind: <enumName>
+  ##    case kind*: <enumName>
   ##    --- Repeat per type - start ---
   ##    of <enumKind>: 
   ##      <type>Msg: <type>
@@ -242,13 +242,13 @@ proc asVariant*(name: ThreadName, types: seq[NimNode] ): NimNode =
   ## Returns a ref object without any fields if types is empty.
   let hasTypes = types.len() > 0
   if not hasTypes:
-    let typeName = newIdentNode(name.variantName)
+    let typeName = postfix(newIdentNode(name.variantName), "*")
     return quote do:
       type `typeName` = ref object 
 
   let caseNode = nnkRecCase.newTree(
     nnkIdentDefs.newTree(
-      newIdentNode("kind"),
+      postfix(newIdentNode("kind"), "*"),
       newIdentNode(name.enumName),
       newEmptyNode()
     )
@@ -260,7 +260,7 @@ proc asVariant*(name: ThreadName, types: seq[NimNode] ): NimNode =
       newIdentNode(typ.kindName),
       nnkRecList.newTree(
         newIdentDefs(
-          newIdentNode(typ.fieldName),
+          postfix(newIdentNode(typ.fieldName), "*"),
           ident(typ.typeName)
         ) 
       )
@@ -294,27 +294,13 @@ proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNod
   ## ```
   ## Returns an empty proc if types is empty
   result = newProc(name = postfix(ident("routeMessage"), "*"))
-  let genericParams = nnkGenericParams.newTree(
-    nnkIdentDefs.newTree(
-      newIdentNode("SMsg"),
-      newIdentNode("CMsg"),
-      newEmptyNode(),
-      newEmptyNode()
-    )
-  )
-  result[2] = genericParams # 2 = Proc Node for generic params
-  
   let msgParamName = "msg"
   let msgParam = newIdentDefs(ident(msgParamName), ident(name.variantName))
   result.params.add(msgParam)
   
   let hubParam = newIdentDefs(
     ident("hub"), 
-    nnkBracketExpr.newTree(
-      ident("ChannelHub"),
-      ident("SMsg"),
-      ident("CMsg")
-    )
+    ident("ChannelHub")
   )
   result.params.add(hubParam)
   
@@ -361,7 +347,7 @@ proc genSenderProc*(name: ThreadName, typ: NimNode): NimNode =
   let senderProcName = newIdentNode(channelHub.SEND_PROC_NAME) # This string depends on the name 
   
   quote do:
-    proc `procName`*[SMsg, CMsg](hub: ChannelHub[SMsg, CMsg], msg: `msgType`): bool =
+    proc `procName`*(hub: ChannelHub, msg: `msgType`): bool =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
       return hub.`senderProcName`(msgWrapper)
 
@@ -376,9 +362,6 @@ proc generateCode(name: ThreadName): NimNode =
   
   let messageVariant = name.asVariant(types)
   result.add(messageVariant)
-  
-  let routerProc = name.genMessageRouter(name.getRoutes(), name.getTypes())
-  result.add(routerProc)
   
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
@@ -399,5 +382,13 @@ macro generate*(name: string): untyped =
 
   result = name.generateCode()
 
+  when defined(butlerDebug):
+    echo result.repr
+    
+macro generateRouter*(name: string) =
+  let name: ThreadName = name.toThreadName()
+
+  result = name.genMessageRouter(name.getRoutes(), name.getTypes())
+  
   when defined(butlerDebug):
     echo result.repr
