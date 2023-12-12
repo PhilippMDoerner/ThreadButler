@@ -22,7 +22,7 @@ registerRouteFor(SERVER_THREAD_NAME):
 proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: CLIENT_THREAD_NAME.} =
   debug "On Client: ", msg.string
 
-generateRouter()
+generateRouters()
 
 proc runClientLoop(hub: ChannelHub) =
   while true:

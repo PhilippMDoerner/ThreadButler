@@ -5,7 +5,7 @@ export
   codegen.generateSetupCode, 
   codegen.registerRouteFor,
   codegen.registerTypeFor,
-  codegen.generateRouter
+  codegen.generateRouters
 export channelHub
 export events
 

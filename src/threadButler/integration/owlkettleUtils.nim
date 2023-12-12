@@ -35,5 +35,5 @@ template createListenerEvent*(data: typed, stateType: typedesc, clientmsgType: t
     addServerListener(state, data, clientmsgType)
 
 
-template sendMessageToServer*(server: Server[typed], msg: auto): bool =
+proc send*[Msg](server: Server[Msg], msg: auto): bool =
   server.hub.sendMessage(msg)

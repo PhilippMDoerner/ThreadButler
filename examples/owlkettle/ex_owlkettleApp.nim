@@ -13,7 +13,7 @@ viewable App:
   receivedMessages: seq[string]
 
 proc sendAppMsg(app: AppState) =
-  discard app.server.sendMessageToServer(app.inputText.Request)
+  discard app.server.send(app.inputText.Request)
   app.inputText = ""
 
 method view(app: AppState): Widget =
