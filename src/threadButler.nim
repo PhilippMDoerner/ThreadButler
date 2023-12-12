@@ -9,9 +9,10 @@ export
 export channelHub
 export events
 
-type KillError = object of CatchableError
+type KillError = object of CatchableError ## A custom error. Throwing this will gracefully shut down the server
+
 proc shutdownServer*() =
-  ## Triggers the shut down of the thread-server this proc is called on.
+  ## Triggers the graceful shut down of the thread-server this proc is called on.
   raise newException(KillError, "Shutdown")
   
 type Server*[Msg] = object ## Data representing a single thread server
@@ -27,7 +28,7 @@ proc run*[Msg](data: Server[Msg]): Thread[Server[Msg]] =
   ## The server listens for new messages and executes `routeMessage` for every message received,
   ## which will call the registered handler proc for this message type.
   ## startup and shutdown events in `data` are executed here before and after the main-loop of the server.
-  ## The server shuts down if `routeMessage` throws a `KillError`.
+  ## The server gracefully shuts down if `routeMessage` throws a `KillError`.
   mixin routeMessage
 
   proc serverLoop(data: Server[Msg]) {.gcsafe.} =
