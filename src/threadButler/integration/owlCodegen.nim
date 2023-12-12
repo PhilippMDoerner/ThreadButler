@@ -43,29 +43,21 @@ proc genOwlRouter(name: ThreadName, widgetName: string): NimNode =
       ident(firstParamType.kindName),
       newStmtList(handlerCall)
     )
-    
     caseStmt.add(branchNode)
     
+  # Generates `of <killKind>: shutdownServer()`: 
+  let killBranchNode = nnkOfBranch.newTree(
+    ident(name.killKindName),
+    nnkCall.newTree(ident("shutdownServer"))
+  )
+  caseStmt.add(killBranchNode)
+  
   result.body.add(caseStmt)
-
-proc generateOwlCode(name: ThreadName): NimNode =
-  result = newStmtList()
-  
-  let types = name.getTypes()
-  
-  let messageEnum = name.asEnum(types)
-  result.add(messageEnum)
-  
-  let messageVariant = name.asVariant(types)
-  result.add(messageVariant)
-
-  for typ in types:
-    result.add(genSenderProc(name, typ))
 
 macro owlSetup*() =
   result = newStmtList()
   for threadName in getRegisteredThreadnames():
-    for node in threadName.generateOwlCode():
+    for node in threadName.generateCode():
       result.add(node)
   
   result.add(genNewChannelHubProc())

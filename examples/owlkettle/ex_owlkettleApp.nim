@@ -53,6 +53,11 @@ routingSetup("client", App)
 
 ## TODO: Make it so that closing the owlkettle client also kills the server.
 ## WithServer should send some kind of kill-message after the while-loop
+## Provide remote thread killing facilities
+## Each Variant and enum should automatically contain a "Kill<ThreadName>Kind"
+## In the routing proc that triggers raising a ThreadKillError, which breaks the while-loop
+## Generate a "killThreads(<ThreadNames>)" macro that generates the code to send a kill message to each thread specified.
+
 
 ## Main
 proc main() =

@@ -54,10 +54,12 @@ template withServer*[Msg](
   data: var ServerData[Msg],
   body: untyped
 ) =
+  mixin sendKillMessage
   let thread: Thread[ServerData[Msg]] = runServer(data)
 
   body
   
+  data.hub.sendKillMessage(Msg.type)
   joinThread(thread)
   data.hub.destroy()
   

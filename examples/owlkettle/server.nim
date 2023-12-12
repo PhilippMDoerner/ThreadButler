@@ -23,6 +23,6 @@ proc initOwlBackend*[Msg](): ServerData[Msg] =
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ],
-    shutdownEvents = @[],
+    shutdownEvents = @[initEvent(() => debug "Server shutting down!")],
     sleepInMs = 0
   )

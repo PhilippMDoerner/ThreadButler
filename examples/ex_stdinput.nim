@@ -11,7 +11,6 @@ registerTypeFor(CLIENT_THREAD_NAME):
 
 registerTypeFor(SERVER_THREAD_NAME):
   type Request = distinct string
-  type KillMessage = object
 
 generateTypes()
 
@@ -19,9 +18,6 @@ registerRouteFor(SERVER_THREAD_NAME):
   proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
     debug "On Server: ", msg.string
     discard hub.sendMessage(Response("Handled: " & msg.string))
-
-proc triggerShutdown(msg: KillMessage, hub: ChannelHub) {.registerRouteFor: SERVER_THREAD_NAME.} =
-  shutdownServer()
 
 proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: CLIENT_THREAD_NAME.} =
   debug "On Client: ", msg.string
@@ -48,7 +44,7 @@ proc main() =
     echo "\nType in a message to send to the Backend!"
     let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
     if terminalInput == "kill":
-      discard hub.sendMessage(KillMessage())
+      hub.sendKillMessage(ServerMessage)
       break
     
     elif terminalInput.len() > 0:
