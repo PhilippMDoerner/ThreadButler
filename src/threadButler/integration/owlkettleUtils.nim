@@ -51,7 +51,7 @@ proc initServer*[Msg](
   )
 
 template withServer*[Msg](
-  data: var ServerData[Msg],
+  data: ServerData[Msg],
   body: untyped
 ) =
   mixin sendKillMessage

@@ -12,7 +12,7 @@ registerTypeFor(CLIENT_THREAD_NAME):
 registerTypeFor(SERVER_THREAD_NAME):
   type Request = distinct string
 
-generateTypes()
+generateSetupCode()
 
 registerRouteFor(SERVER_THREAD_NAME):
   proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
@@ -25,12 +25,11 @@ proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.registerRouteFor: 
 generateRouter()
 
 proc main() =
-  var hub = new(ChannelHub)
-  let sleepMs = 10
+  let hub = new(ChannelHub)
   let data: ServerData[ServerMessage] = ServerData[ServerMessage](
     hub: hub,
     msgType: default(ServerMessage),
-    sleepMs: sleepMs,
+    sleepMs: 10,
     startUp: @[
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")

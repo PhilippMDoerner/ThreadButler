@@ -62,15 +62,12 @@ routingSetup("client", App)
 ## Main
 proc main() =
   # Server
-  var server = initOwlBackend[ServerMessage]()
-  server.hub.addChannel(ServerMessage)
-  server.hub.addChannel(ClientMessage)
+  let server = initOwlBackend[ServerMessage]()
   withServer(server):
     let listener = createListenerEvent(server, AppState, ClientMessage)
-    var appWidget = gui(App(server = server))
     
     adw.brew(
-      appWidget,
+      gui(App(server = server)),
       startupEvents = [listener]
     )
 
