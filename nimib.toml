@@ -1,0 +1,10 @@
+[nimib]
+srcDir = "docs/book"
+homeDir = "docs/bookCompiled"
+
+[nimibook]
+language = "English"
+title = "ThreadButler"
+description = "Easy multithreading with a client-server model"
+git_repository_url = "https://github.com/PhilippMDoerner/ThreadButler"
+
