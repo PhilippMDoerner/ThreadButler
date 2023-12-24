@@ -1,4 +1,7 @@
-# ThreadButler - THIS PROJECT IS NOT YET BEYOND POC
+# ThreadButler
+
+| :exclamation:  This library is currently in an alpha version. Testing as of right now consists of compiling and manually testing the examples.   |
+|-----------------------------------------|
 
 #### _They're here to serve_
 **ThreadButler** is a package for multithreading in applications. 
