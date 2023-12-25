@@ -33,7 +33,7 @@ export types.Server
 
 type KillError* = object of CatchableError ## A custom error. Throwing this will gracefully shut down the server
 
-var threadPool* {.threadVar.}: TaskPool
+var threadPool* {.threadVar.}: TaskPool ## The thread-local thread-pool each threadServer has
 
 var IS_RUNNING* = true ## \
 ## Global switch that controls whether threadServers keep running or shut down.
@@ -93,6 +93,7 @@ proc run[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
     system.createThread(thread, serverProc[Msg], data)
 
 template runTask*(body: untyped) =
+  ## Utility to spawn tasks
   threadPool.spawn body
 
 template withServer*(hub: ChannelHub, threadName: static string, body: untyped) =
