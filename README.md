@@ -6,11 +6,14 @@
 #### _They're here to serve_
 **ThreadButler** is a package for multithreading in applications. 
 
-It simplifies setting up "threadServers" - threads that live as long as your application does and can be pinged with messages and send messages to any other thread themselves. 
+It simplifies setting up "threadServers" - threads that live as long as your application does.
+These threads communicate with your main thread via messages, which trigger registered handler procs.
 
-They act as a "backend" for any heavy computation you do not wish to perform in your client loop. 
+ThreadServers act as a "backend" for any heavy computation you do not wish to perform in your client loop. 
 
-The message sending is enabled via nim's [Channels](https://nim-by-example.github.io/channels/). ThreadButler defines a shared ChannelHub that contains 1 Channel for each Thread. Those channels accept only messages for the Thread they're assigned to.
+This package can also be used if you don't want to spawn a threadServer - the code it generates helps setting up a task-pool for one-off tasks that can send messages back when a task is done.
+
+The message passing is done through nim's [Channels](https://nim-by-example.github.io/channels/).
 
 - [Documentation](https://philippmdoerner.github.io/ThreadButler/bookCompiled/index.html) (built with [nimibook](https://github.com/pietroppeter/nimibook))
 - [Index](https://philippmdoerner.github.io/ThreadButler/htmldocs/theindex.html)
