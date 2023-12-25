@@ -1,4 +1,4 @@
-import std/[macros, tables, strformat, sets, strutils, unicode, logging, sequtils]
+import std/[macros, tables, genasts, strformat, sets, strutils, unicode, logging, sequtils]
 import ./utils
 import ./register
 import ./channelHub
@@ -334,9 +334,9 @@ proc genDestroyChannelHubProc*(): NimNode =
     
     for threadName in threadNames:
       let variantType = newIdentNode(threadName.variantName)
-      let closeChannelLine = quote do:
-        `hubParam`.getChannel(`variantType`).close()
-      
+      let closeChannelLine = genAst(hubParam, variantType):
+        hubParam.getChannel(variantType).close()
+        `=destroy`(hubParam.getChannel(variantType))
       result.body.add(closeChannelLine)
 
 proc genSendKillMessageProc*(name: ThreadName): NimNode =
