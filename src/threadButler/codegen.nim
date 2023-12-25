@@ -1,4 +1,4 @@
-import std/[macros, tables, genasts, strformat, sets, strutils, unicode, logging, sequtils]
+import std/[macros, tables, strformat, sets, strutils, unicode, logging, sequtils]
 import ./utils
 import ./register
 import ./channelHub

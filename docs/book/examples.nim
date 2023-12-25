@@ -31,6 +31,12 @@ You can turn any proc-call into a task by using the `spawn` syntax:
 threadPool.spawn myProc()
 threadPool.spawn myProc(param1, param2)
 ```
+
+## [No Server](https://github.com/PhilippMDoerner/ThreadButler/blob/main/examples/ex_stdinput_no_server.nim)
+ThreadButler can be useful even without running a dedicated thread as a server.
+
+This example uses ThreadButlers code-generation to just set up a threadpool that sends messages back and handling those automatically.
+No threadServer is spawned, just the main-thread and a task-pool.
 """
 
 nbSave()

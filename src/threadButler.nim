@@ -59,7 +59,8 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
       if msg.isSome():
         let msgKind = msg.get().kind
         try:
-          routeMessage(msg.get(), data.hub)
+          {.gcsafe.}:
+            routeMessage(msg.get(), data.hub)
         except KillError:
           break
         
@@ -69,7 +70,7 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
       poll(data.sleepMs)
       sleep(data.sleepMs)
 
-proc serverProc[Msg](data: Server[Msg]) {.gcsafe.} =
+proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
   data.startUp.execEvents()
 
