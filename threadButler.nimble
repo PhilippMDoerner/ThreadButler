@@ -10,8 +10,9 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "threading >= 0.2.0"
 requires "taskpools >= 0.0.5"
+when defined(butlerThreading):
+  requires "threading >= 0.2.0"
 
 # Example-Dependencies
 requires "owlkettle#head"
