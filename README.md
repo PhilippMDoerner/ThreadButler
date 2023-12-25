@@ -1,7 +1,7 @@
 # ThreadButler
 
 > [!WARNING]  
-> This library is currently in an alpha version. Testing as of right now consists of compiling and manually testing the examples.
+> This library is currently in an alpha version. Some API changes may still happen. Testing as of right now consists of compiling and manually testing the examples.
 
 #### _They're here to serve_
 **ThreadButler** is a package for multithreading in applications. 
@@ -16,7 +16,7 @@ The message sending is enabled via nim's [Channels](https://nim-by-example.githu
 - [Index](https://philippmdoerner.github.io/ThreadButler/htmldocs/theindex.html)
 - [RootModule](https://philippmdoerner.github.io/ThreadButler/htmldocs/threadButler.html)
 
-## Installation # PACKAGE NOT YET INSTALLABLE #
+## Installation
 
 Install ThreadButler with Nimble:
 
