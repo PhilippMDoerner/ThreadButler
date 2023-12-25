@@ -38,7 +38,7 @@ Add ThreadButler to your .nimble file:
 ## General Architecture
 
 The following statements describe the architecture behind threadButler:
-- 1 ThreadServer is an event-loop running on 1 Thread
+- 1 ThreadServer is an event-loop running on 1 Thread, defined by `proc runServerLoop`
 - Each ThreadServer has a name called `<ThreadName>`
 - Each ThreadServer has 1 dedicated Channel for messages sent to it
 - All Channels are combined into a single hub, the ChannelHub, which is accessible by all threads.
@@ -46,7 +46,8 @@ The following statements describe the architecture behind threadButler:
 - The ThreadServer's Channel can only carry instances of `<ThreadName>Message`
 - Messages are wrapped in the Object Variant using helper procs `proc sendMessage`
 - Each ThreadServer has its own routing `proc routeMessage`. It "unwraps" the object variant `<ThreadName>Message` and calls the registered handler proc for it.
-- Each ThreadServer has its own (optional) threadPool for one-off tasks (e.g. waiting for a blocking operation)
+- Each ThreadServer has its own (optional) threadPool for one-off tasks (e.g. waiting for a blocking operation).
+Tasks can have access to the ChannelHub to send messages with their results if necessary.
 
 ### General Flow of Actions
 
