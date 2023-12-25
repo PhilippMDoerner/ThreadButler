@@ -33,7 +33,7 @@ Add ThreadButler to your .nimble file:
 - Defining and spawning long-running threads with threadServers that receive and send messages 
 - Typesafe message passing - A message will always be sent to the correct thread it belongs to, as determined by its type
 - Async message handlers
-- Running procs as tasks on a threadPool which can message results back if necessary without ever blocking
+- Running procs as tasks on a threadPool which can message results back if necessary without blocking your main thread or threadServers
 - Customizable ServerLoops
 - Kill-Thread mechanisms
 - Startup/Shutdown events per Thread
