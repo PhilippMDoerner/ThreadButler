@@ -95,6 +95,11 @@ Currently the following packages/frameworks have such modules:
 - [Owlkettle](https://philippmdoerner.github.io/ThreadButler/htmldocs/threadButler/integrations/owlButler.html)
 
 ## Limitations
+#### No explicit support for --mm:refc
+This package is only validated for the ARC/ORC memory management strategies (--mm:arc and --mm:orc respectively).
+
+If you are not familiar with those flags, check out the [nim compiler docs](https://nim-lang.org/docs/nimc.html).
+
 #### Must use -d:useMalloc
 Due to memory issues that occurred while running some stress-tests it is currently discouraged to use nim's default memory allocator. Use malloc with `-d:useMalloc` instead.
 
