@@ -38,54 +38,19 @@ Add ThreadButler to your .nimble file:
 ## General Architecture
 
 The following statements describe the architecture behind threadButler:
+- 1 ThreadServer is an event-loop running on 1 Thread
+- Each ThreadServer has a name called `<ThreadName>`
+- Each ThreadServer has 1 dedicated Channel for messages sent to it
 - All Channels are combined into a single hub, the ChannelHub, which is accessible by all threads.
-- Each Thread has its own name `<ThreadName>`through which things are associated with it and names of data-types etc. related to it are inferred.
-- Each Thread has 1 enum `<ThreadName>Kinds` covering all kinds of messages that can be sent through its Channel
-- Each Thread has 1 Object Variant wrapping any kind of message that can be sent to a Thread
-- Each Thread has 1 Channel associated with it through which its associated object variant can be sent.
-- Each Object Variant has the name `<ThreadName>Message` suffix
-- Each Thread has its own mainloop.
-- Each Thread has its own routing proc `routeMessage` which "unpacks" the object variant to a message and calls the handler-proc of the appropriate route.
-- Each Thread has its own set of message-types it can receive and handler-procs for handling those message-types associated with it.
-- When a message of a message type T gets sent to a Thread, it get wrapped in the object variant associated with the Thread that T is registered with, then sent through their associated Channel on the ChannelHub
+- Each Thread has 1 Object Variant `<ThreadName>Message` wrapping any kind of message it can receive
+- The ThreadServer's Channel can only carry instances of `<ThreadName>Message`
+- Messages are wrapped in the Object Variant using helper procs `proc sendMessage`
+- Each ThreadServer has its own routing `proc routeMessage`. It "unwraps" the object variant `<ThreadName>Message` and calls the registered handler proc for it.
+- Each ThreadServer has its own (optional) threadPool for one-off tasks (e.g. waiting for a blocking operation)
 
 ### General Flow of Actions
 
 <img src="./assets/app_architecture.png">
-
-### Sequence Diagram
-A sequence diagram of the actions that happen to send a single message from thread A to thread B.
-```mermaid
-sequenceDiagram
-    actor User
-    box Grey ThreadA
-        participant ThreadALoop
-    end
-    box Green ChannelHub
-        participant ChannelHub
-        participant Channel
-    end
-    box Grey ThreadB
-        participant ThreadBLoop
-        participant Route
-        participant OutputAction
-    end
-
-    loop every sleepMs:
-        ThreadALoop -->> ThreadALoop: iterates
-    end
-    loop every sleepMs:
-        ThreadBLoop -->> ThreadBLoop: iterates
-    end
-    User->>ThreadALoop: triggers action
-    ThreadALoop ->> ChannelHub: sendMessage(msg: T)
-    ChannelHub ->> Channel: sendMsgToChannel<br>(msg: <ThreadName>Message)
-    ThreadBLoop ->> ChannelHub: readMsg(): Option[Msg]
-    ChannelHub ->> Channel: tryRecv(): Msg
-    Channel ->> ThreadBLoop: Msg
-    ThreadBLoop ->> Route: routeMessage(msg: Msg)
-    Route ->> OutputAction: handlerProc(msg: U)
-```
 
 ## Special Integrations
 ThreadButler provides small, simple utilities for easier integration with specific frameworks/libraries.
