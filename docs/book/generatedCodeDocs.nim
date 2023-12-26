@@ -46,6 +46,11 @@ Only calls this proc once to have a single instance that you pass around.
 Destructor for ChannelHub.
 Only call this proc once to destroy the single ChannelHub instance that you have.
 
+## prepareServers: handler procs
+Procs added to the `handlers` section of each threadServer are spawned here.
+This allows threadButler to guarantee that a handler has access to all types of other threadServers once they are generated.
+That way, even without the importing the types of other threadservers, you can send messages to them as the place where "prepareServers" gets called is the place where the procs will appear.
+
 ## prepareServers: [proc routeMessage](https://philippmdoerner.github.io/ThreadButler/htmldocs/threadButler/codegen.html#genMessageRouter%2CThreadName%2Cseq%5BNimNode%5D%2Cseq%5BNimNode%5D)
 The routing proc generated per threadServer.
 

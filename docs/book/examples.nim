@@ -28,8 +28,8 @@ That threadpool works on tasks spawned by your threadServer.
 
 You can turn any proc-call into a task by using the `spawn` syntax:
 ```nim
-threadPool.spawn myProc()
-threadPool.spawn myProc(param1, param2)
+runAsTask myProc()
+runAsTask myProc(param1, param2)
 ```
 
 ## [No Server](https://github.com/PhilippMDoerner/ThreadButler/blob/main/examples/ex_stdinput_no_server.nim)

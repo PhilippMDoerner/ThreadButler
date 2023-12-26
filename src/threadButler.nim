@@ -92,8 +92,8 @@ proc run[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):
     system.createThread(thread, serverProc[Msg], data)
 
-template runTask*(body: untyped) =
-  ## Utility to spawn tasks
+template runAsTask*(body: untyped) =
+  ## Utility to spawn tasks. You can put any proc-call inside of `body`.
   threadPool.spawn body
 
 template withServer*(hub: ChannelHub, threadName: static string, body: untyped) =

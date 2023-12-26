@@ -34,7 +34,7 @@ threadServer(SERVER_THREAD):
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
       debug "On Server: ", msg.string
-      threadPool.spawn hub.runLate()
+      runAsTask hub.runLate()
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()

@@ -22,7 +22,7 @@ threadServer("client"):
         shutdownServer()
       else:
         debug "New message: ", msg
-        runTask requestUserInput(hub)
+        runAsTask requestUserInput(hub)
     
 
 prepareServers()
