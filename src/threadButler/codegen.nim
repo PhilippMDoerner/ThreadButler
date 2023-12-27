@@ -299,11 +299,7 @@ proc genNewChannelHubProc*(): NimNode =
     proc new*(t: typedesc[ChannelHub], `capacityParam`: int = 500): ChannelHub =
       result = ChannelHub(channels: initTable[pointer, pointer]())
   
-  let threadNames = concat(
-    getRegisteredThreadnames(),
-    getCustomThreadnames()
-  )
-  for threadName in threadNames:
+  for threadName in getRegisteredThreadnames():
     let variantType = newIdentNode(threadName.variantName)
     let addChannelLine = quote do:
       result.addChannel(`variantType`, `capacityParam`)
@@ -327,12 +323,7 @@ proc genDestroyChannelHubProc*(): NimNode =
       notice "Destroying Channelhub"
   
   when not defined(butlerThreading): # threading/channels don't need to be closed
-    let threadNames = concat(
-      getRegisteredThreadnames(),
-      getCustomThreadnames()
-    )
-    
-    for threadName in threadNames:
+    for threadName in getRegisteredThreadnames():
       let variantType = newIdentNode(threadName.variantName)
       let closeChannelLine = genAst(hubParam, variantType):
         hubParam.getChannel(variantType).close()

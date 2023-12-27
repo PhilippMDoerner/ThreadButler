@@ -1,4 +1,4 @@
-import std/[macros, macrocache, strformat, options, sequtils]
+import std/[macros, macrocache, strformat, options]
 import ./utils
 
 ## Deals with storing procs and types in the CacheTables `types` (typeTable) and `routes` (routeTable). 
@@ -20,8 +20,6 @@ const properties = CacheTable"propertiesTable" ## \
 ## The properties are stoerd in a StatementList-NimNode for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]
 
-const customThreads = CacheSeq"customThreads" ## \
-## Stores a list of names of custom "threadServers" for which the user controls the eventloop
 
 type ThreadName* = distinct string
 proc `==`*(x, y: ThreadName): bool {.borrow.}
@@ -110,9 +108,6 @@ proc addType*(name: ThreadName, typeDef: NimNode) =
   
   types[name.string].add(typeDef)
 
-proc addThread*(name: ThreadName) =
-  customThreads.add(name.string.ident)
-
 proc hasProcForType*(name: ThreadName, typName: string): bool =
   ## Checks if a handler proc whose first parameter type is `typName`
   ## is already registered for `name`.
@@ -162,9 +157,6 @@ proc getRegisteredThreadnames*(): seq[ThreadName] =
     let name = key.ThreadName
     if name notin result:
       result.add(name)
-
-proc getCustomThreadnames*(): seq[ThreadName] =
-  customThreads.mapIt(ThreadName($it))
     
 proc addProperty*(name: ThreadName, property: NimNode) =
   property.assertKind(@[nnkCall, nnkAsgn], "You need a property assignment with ':' or '=' to add a property")
