@@ -32,6 +32,9 @@ runAsTask myProc()
 runAsTask myProc(param1, param2)
 ```
 
+Keep in min that the threadServer macro does **not** emit the handler procs defined inside of it. 
+This is done by `prepareServers`, so your handler calls a task proc it must be accessible where you call `prepareServers`.
+
 ## [No Server](https://github.com/PhilippMDoerner/ThreadButler/blob/main/examples/ex_stdinput_no_server.nim)
 ThreadButler can be useful even without running a dedicated thread as a server.
 

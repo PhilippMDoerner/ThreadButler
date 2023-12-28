@@ -38,6 +38,9 @@ The handlers section defines how to handle a message of a specific message type 
 It is a bunch of procs that **must** cover all types defined in `messageTypes`.
 ThreadButler will tell you at compile-time if you forgot to define a handler for one of the types or added a handler whose type is not mentioned in `messageTypes`.
 
+Procs in the handlers section are consumed by the `threadServer` macro.
+They are only emitted later by the `prepareServers` macro.
+
 Generally these procs must have this signature:
 ```nim
 proc <procName>(msg: <YourMsgType>, hub: ChannelHub)
