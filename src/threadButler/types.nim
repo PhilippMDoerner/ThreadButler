@@ -4,10 +4,10 @@ import ./[channelHub, events]
 type Server*[Msg] = object ## Data representing a single threadServer
   hub*: ChannelHub ## The ChannelHub. Set internally by threadButler
   msgType*: Msg ## The Message-Wrapper-Type of all messages that this threadServer receives. Set internally by threadButler
-  sleepMs*: int ## Defines the amount of time spent each event-loop iteration on the async-event-loop. Increase when higher latency is acceptable for better idle efficiency
+  sleepMs*: int = 5 ## Defines the amount of time spent each event-loop iteration on the async-event-loop. Increase when higher latency is acceptable for better idle efficiency
   startUp*: seq[Event] ## parameterless closures to execute before running the server
   shutDown*: seq[Event] ## parameterless closures to execute after when the server is shutting down
-  taskPoolSize*: int ## The number of threads in the threadPool that execute tasks.
+  taskPoolSize*: int = 2 ## The number of threads in the threadPool that execute tasks.
 
 type Property* = enum ## The fields on `Server`_ that can be set via a `properties` section
   sleepMs

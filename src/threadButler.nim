@@ -68,7 +68,6 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
           log.error(fmt"Message '{msgKind}' Caused exception: " & e.repr)
       
       poll(data.sleepMs)
-      sleep(data.sleepMs)
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
