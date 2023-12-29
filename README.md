@@ -31,16 +31,16 @@ Add ThreadButler to your .nimble file:
 
 ## Provided/Supported:
 - Defining and spawning long-running threads with threadServers that receive and send messages 
-- Typesafe message passing - A message will always be sent to the correct thread it belongs to, as determined by its type
+- Typesafe message passing
 - Async message handlers
-- Running procs as tasks on a threadPool which can message results back if necessary without blocking your main thread or threadServers
+- Running procs as tasks on a threadPool
 - Customizable ServerLoops
 - Kill-Thread mechanisms
 - Startup/Shutdown events per Thread
 
 ## General Architecture
 
-The following statements describe the architecture behind threadButler:
+The following statements describe the architecture behind ThreadButler:
 - 1 ThreadServer is an event-loop running on 1 Thread, defined by `proc runServerLoop`
 - Each ThreadServer has a name called `<ThreadName>`
 - Each ThreadServer has 1 dedicated Channel for messages sent to it
