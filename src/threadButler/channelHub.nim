@@ -66,26 +66,24 @@ else:
       )
     return cast[ptr Channel[Msg]](channelPtr)[]
 
-proc debugSendLog[Msg](msg: Msg, hub: ChannelHub, success: bool) =
+proc debugSendLog[Msg](msg: Msg, hub: ChannelHub) =
   let msg = "Thread '" & $getThreadId() & "' => " & $msg
-  if success:
-    debug "send: " & $msg
-  else:
-    let queueLength = hub.getChannel(Msg).peek()
-    error "failed to send ('" & $queueLength & "' msgs in queue): " & $msg
+  debug "send: " & $msg
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =
   ## Sends a message through the Channel associated with `Msg`.
   ## This is non-blocking.
   ## Returns `bool` stating if sending was successful.
-  debugSendLog(msg, hub, result)
+  debugSendLog(msg, hub)
   
   when defined(butlerThreading):
     let msg = msg.unsafeIsolate()
     
   try:
-    result = hub.getChannel(Msg).trySend(msg)  
+    result = hub.getChannel(Msg).trySend(msg) 
+    if not result:
+      debug "Failed to send message" 
   except Exception as e:
     raise (ref ChannelHubError)(
       msg: "Error while sending message",
