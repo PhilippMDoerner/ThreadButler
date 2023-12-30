@@ -1,5 +1,5 @@
 import threadButler
-import std/[logging, options, strformat, os]
+import std/[logging, options, strformat]
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 

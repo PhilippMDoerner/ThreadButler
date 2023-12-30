@@ -2,6 +2,7 @@ import std/[strformat, options, tables]
 import ./log
 when defined(butlerThreading):
   import threading/channels
+  import std/isolation
   
 when defined(butlerThreading):
   template createChannel[Msg](capacity: int): Chan[Msg] =
@@ -78,6 +79,11 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
   ## Sends a message through the Channel associated with `Msg`.
   ## This is non-blocking.
   ## Returns `bool` stating if sending was successful.
+  debugSendLog(msg, hub, result)
+  
+  when defined(butlerThreading):
+    let msg = msg.unsafeIsolate()
+    
   try:
     result = hub.getChannel(Msg).trySend(msg)  
   except Exception as e:
@@ -86,8 +92,6 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
       parent: e
     )
     
-  debugSendLog(msg, hub, result)
-
 proc debugReadLog[Msg](msg: Msg, hub: ChannelHub) {.raises: [].} =
   debug fmt"read: Thread '" & $getThreadId() & "' <= " & msg.repr
 

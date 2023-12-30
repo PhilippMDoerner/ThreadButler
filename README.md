@@ -74,15 +74,9 @@ Due to memory issues that occurred while running some stress-tests it is current
 
 See [nim-lang issue#22510](https://github.com/nim-lang/Nim/issues/22510) for more context.
 
-#### Using ref type messages with -d:butlerThreading is not supported by the framework
-threading/channels require a message be isolateable.
-This is not easily doable as ref-types by their nature can not be isolated, as you - the user - will still be holding on to references when passing the message.
+#### Using ref type messages with -d:butlerThreading is not guaranteed to be thread-safe
+threading/channels require a message be isolateable before sending it. This is to guarantee that the sending thread no longer accesses the memory of the message after its memory ownership was moved to another thread. You risk segfaults if you do.
 
-So to send a message we would need to:
-- dereference the message to make it isolateable
-- send it through the threading/channel
-- put the message behind a reference again on the other thread
+However, ref-types can not be properly isolated when users pass them into the various sending procs, as the compiler can not reason about whether the user still has references to that data somewhere and may access it.
 
-Just so the handler-proc can be called with the appropriate type again.
-
-This requires derefferencing the message before sending and moving the message into a reference again after sending but before invoking a registered handler. The added complexity does not seem worth it.
+There are currently no mechanisms to do anything about this, so ThreadButler disables those isolation checks. The burden is therefore on you, the user. You must ensure to **never acccess** a message's memory after you pass it to any of ThreadButler's sending procs.
