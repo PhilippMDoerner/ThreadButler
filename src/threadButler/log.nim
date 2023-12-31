@@ -1,5 +1,5 @@
 import std/[strutils, logging]
-
+export logging
 ##[
 
 A simple module handling logging within threadbutler, using std/logging.
@@ -13,44 +13,42 @@ const BUTLER_LOG_LEVEL* {.strdefine: "butlerloglevel".}: string = "lvlerror"
 
 const LOG_LEVEL*: Level = parseEnum[Level](BUTLER_LOG_LEVEL)
 
-proc debug*(message: string) {.raises: [].} =
+proc getLoggers*(): seq[Logger] =
+  getHandlers()
+
+proc log(logger: Logger, logLevel: static Level, message: string) {.raises: [].} =
   {.cast(noSideEffect).}:
-    when LOG_LEVEL <= lvlDebug:
+    when LOG_LEVEL <= logLevel:
       try:
-        logging.debug message
-      except Exception:
+        logging.log(logger, logLevel, message)
+      except Exception as e:
+        echo "Logging is triggering errors!", e.repr
         discard
 
-proc notice*(message: string) {.raises: [].} =
+proc log*(loggers: seq[Logger], logLevel: static Level, message: string) {.raises: [].} =
   {.cast(noSideEffect).}:
-    when LOG_LEVEL <= lvlNotice:
-      try:
-        logging.notice message
-      except Exception:
-        discard
+    when LOG_LEVEL <= logLevel:
+      for logger in loggers:
+        try:
+          logging.log(logger, logLevel, message)
+        except Exception as e:
+          echo "Logging is triggering errors!", e.repr
+          discard
 
+proc log*(logLevel: static Level, message: string) =
+  getLoggers().log(logLevel, message)
 
-proc warn*(message: string) {.raises: [].} =
-  {.cast(noSideEffect).}:
-    when LOG_LEVEL <= lvlWarn:
-      try:
-        logging.warn message
-      except Exception:
-        discard
+proc debug*(message: string)  =
+  log(lvlDebug, message)
 
-proc error*(message: string) {.raises: [].} =
-  {.cast(noSideEffect).}:
-    when LOG_LEVEL <= lvlError:
-      try:
-        logging.error message
-      except Exception:
-        discard
+proc notice*(message: string) =
+  log(lvlNotice, message)
 
+proc warn*(message: string) =
+  log(lvlWarn, message)
 
-proc fatal*(message: string) {.raises: [].} =
-  {.cast(noSideEffect).}:
-    when LOG_LEVEL <= lvlFatal:
-      try:
-        logging.fatal message
-      except Exception:
-        discard
+proc error*(message: string) =
+  log(lvlError, message)
+
+proc fatal*(message: string) =
+  log(lvlFatal, message)

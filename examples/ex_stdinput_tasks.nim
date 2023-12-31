@@ -1,6 +1,6 @@
 import threadButler
 import threadButler/log
-import std/[sugar, logging, options, strformat, os]
+import std/[sugar, options, strformat, os]
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
@@ -9,7 +9,7 @@ const SERVER_THREAD = "server"
 type Response = distinct string
 type Request = distinct string
 
-proc runLate(hub: ChannelHub) {.gcsafe, raises: [].}
+proc runLate(hub: ChannelHub, loggers: seq[Logger]) {.gcsafe, raises: [].}
 
 threadServer(CLIENT_THREAD):
   messageTypes:
@@ -34,7 +34,7 @@ threadServer(SERVER_THREAD):
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
       debug "On Server: ", msg.string
-      runAsTask hub.runLate()
+      runAsTask hub.runLate(getLoggers())
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()
@@ -59,17 +59,14 @@ proc runClientLoop(hub: ChannelHub) =
     if response.isSome():
       routeMessage(response.get(), hub)
 
-proc runLate(hub: ChannelHub) =
-  if getHandlers().len == 0: # Checks if the thread has a logger attached or not
-    addHandler(newConsoleLogger(fmtStr="[TASK $levelname] "))
-
-  log.debug "Start: " & $getThreadId()
+proc runLate(hub: ChannelHub, loggers: seq[Logger]) =
+  loggers.log(lvlDebug, "Start: " & $getThreadId())
   sleep(1000)
   let msg = "Run with delay: " & $getThreadId()
   try:
     discard hub.sendMessage(msg.Response)
   except ChannelHubError as e:
-    log.error("Failed to send message. " & e.repr)
+    loggers.log(lvlError, "Failed to send message. " & e.repr)
 
 proc main() =
   let hub = new(ChannelHub)
