@@ -16,24 +16,24 @@ const LOG_LEVEL*: Level = parseEnum[Level](BUTLER_LOG_LEVEL)
 proc getLoggers*(): seq[Logger] =
   getHandlers()
 
+template logContext(body) =
+  try:
+    body
+  except Exception as e:
+    echo "Failed to log! ", e.repr
+
 proc log(logger: Logger, logLevel: static Level, message: string) {.raises: [].} =
   {.cast(noSideEffect).}:
     when LOG_LEVEL <= logLevel:
-      try:
+      logContext():
         logging.log(logger, logLevel, message)
-      except Exception as e:
-        echo "Logging is triggering errors!", e.repr
-        discard
-
+      
 proc log*(loggers: seq[Logger], logLevel: static Level, message: string) {.raises: [].} =
   {.cast(noSideEffect).}:
     when LOG_LEVEL <= logLevel:
       for logger in loggers:
-        try:
+        logContext():
           logging.log(logger, logLevel, message)
-        except Exception as e:
-          echo "Logging is triggering errors!", e.repr
-          discard
 
 proc log*(logLevel: static Level, message: string) =
   getLoggers().log(logLevel, message)
