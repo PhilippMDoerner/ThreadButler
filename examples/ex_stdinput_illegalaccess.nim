@@ -30,7 +30,7 @@ threadServer(SERVER_THREAD):
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", cast[uint64](msg), " - ", getThreadId()
+      debug "On Server: ", cast[uint64](msg), " - Thread: ", getThreadId()
 
       discard hub.sendMessage(Response("Handled: " & msg.text[]))
 
@@ -51,7 +51,7 @@ proc runClientLoop(hub: ChannelHub) =
       debug "On Client: ", cast[uint64](msg), " - Thread: ", getThreadId()
       discard hub.sendMessage(msg)
       sleep(3000)
-      echo "Unsafe access: ", str[], msg[].repr
+      debug "Unsafe access: ",  cast[uint64](msg), " - Thread: ", getThreadId(), " - ", msg[].repr
     ## Guarantees that we'll have the response from server before we listen for user input again. 
     ## This is solely for better logging, do not use in actual code.
     sleep(100)
