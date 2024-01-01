@@ -115,6 +115,7 @@ task benchmark, "Run the benchmark to check if there are performance differences
     # "--define:butlerDebug",
     "-f",
     "-d:useMalloc",
+    "-d:chronicles_enabled=off",
   ]
   let paramStr = params.join(" ")
   let command = fmt"nim r {paramStr} {file}"

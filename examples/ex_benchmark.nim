@@ -76,7 +76,7 @@ proc main() =
         routeMessage(response.get(), hub)
         counter.inc
     var t1 = cpuTime()
-    echo "\nCPU time for small Messages (in s): ", t1 - t0
+    echo "\nCPU time for small Messages (in s): ", t1 - t0, "s"
     echo "SmallMessages: Sent: ", smallSendCounter, " - Received: ", smallReceivedCounter, " - Failed: ", smallFailCounter
     
     var t2 = cpuTime()
@@ -94,6 +94,6 @@ proc main() =
         counter.inc
     var t3 = cpuTime()
 
-    echo "\nCPU time for Large Messages (in s): ", t3 - t2
+    echo "\nCPU time for Large Messages (in s): ", t3 - t2, "s"
     echo "LargeMessages: Sent: ", largeSendCounter, " - Received: ", largeReceivedCounter, " - Failed: ", largeFailCounter
 main()

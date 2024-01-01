@@ -49,23 +49,25 @@ proc shutdownServer*() =
   
 
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
-    mixin routeMessage
+  mixin routeMessage
 
-    while IS_RUNNING:
-      let msg: Option[Msg] = data.hub.readMsg(Msg)
-      if msg.isSome():
-        let msgKind = msg.get().kind
-        try:
-          {.gcsafe.}:
-            routeMessage(msg.get(), data.hub)
-        except KillError:
-          break
-        
-        except CatchableError as e:
-          error "Message caused exception", msg, error = e.repr
-      
-      poll(data.sleepMs)
+  while IS_RUNNING:
+    var msg: Option[Msg] = data.hub.readMsg(Msg)
+    try:
+      while msg.isSome():
+        {.gcsafe.}:
+          routeMessage(msg.get(), data.hub)
 
+        msg = data.hub.readMsg(Msg)
+
+    except KillError:
+      break
+    
+    except CatchableError as e:
+      error "Message caused exception", msg, error = e.repr
+    
+    poll(data.sleepMs)
+  
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
   data.startUp.execEvents()
@@ -96,7 +98,6 @@ template withServer*(hub: ChannelHub, threadName: static string, body: untyped) 
   body
   
   server.hub.sendKillMessage(threadName.toVariantType())
-  
   when not defined(butlerDocs):
     joinThread(threadName.toThreadVariable())
 
