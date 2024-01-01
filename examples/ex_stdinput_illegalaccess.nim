@@ -1,7 +1,5 @@
 import threadButler
-import std/[sugar, logging, options, strformat, os]
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+import std/[sugar, logging, options, os]
 
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
@@ -15,12 +13,11 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
-      debug "On Client: ", msg.string
+      debug "On Client: ", msg = msg.string
     
 threadServer(SERVER_THREAD):
   properties:
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]
@@ -30,7 +27,7 @@ threadServer(SERVER_THREAD):
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", cast[uint64](msg), " - Thread: ", getThreadId()
+      debug "On Server: ", msgPtr = cast[uint64](msg)
 
       discard hub.sendMessage(Response("Handled: " & msg.text[]))
 
@@ -48,10 +45,10 @@ proc runClientLoop(hub: ChannelHub) =
       let str = new(string)
       str[] = terminalInput
       let msg = Request(text: str)
-      debug "On Client: ", cast[uint64](msg), " - Thread: ", getThreadId()
+      debug "On Client: ", msgPtr = cast[uint64](msg)
       discard hub.sendMessage(msg)
       sleep(3000)
-      debug "Unsafe access: ",  cast[uint64](msg), " - Thread: ", getThreadId(), " - ", msg[].repr
+      debug "Unsafe access: ",  msgPtr = cast[uint64](msg), msgContent = msg[].repr
     ## Guarantees that we'll have the response from server before we listen for user input again. 
     ## This is solely for better logging, do not use in actual code.
     sleep(100)

@@ -1,5 +1,5 @@
-import std/[strutils, logging]
-export logging
+import chronicles
+export chronicles
 ##[
 
 A simple module handling logging within threadbutler, using std/logging.
@@ -8,47 +8,3 @@ Logging at a specific level is compiled in or out based on the log-level allowed
 
 This module is only intended for use within threadButler and for integrations.
 ]##
-
-const BUTLER_LOG_LEVEL* {.strdefine: "butlerloglevel".}: string = "lvlerror"
-
-const LOG_LEVEL*: Level = parseEnum[Level](BUTLER_LOG_LEVEL)
-
-proc getLoggers*(): seq[Logger] =
-  getHandlers()
-
-template logContext(body) =
-  try:
-    body
-  except Exception as e:
-    echo "Failed to log! ", e.repr
-
-proc log(logger: Logger, logLevel: static Level, message: string) {.raises: [].} =
-  {.cast(noSideEffect).}:
-    when LOG_LEVEL <= logLevel:
-      logContext():
-        logging.log(logger, logLevel, message)
-      
-proc log*(loggers: seq[Logger], logLevel: static Level, message: string) {.raises: [].} =
-  {.cast(noSideEffect).}:
-    when LOG_LEVEL <= logLevel:
-      for logger in loggers:
-        logContext():
-          logging.log(logger, logLevel, message)
-
-proc log*(logLevel: static Level, message: string) =
-  getLoggers().log(logLevel, message)
-
-proc debug*(message: string)  =
-  log(lvlDebug, message)
-
-proc notice*(message: string) =
-  log(lvlNotice, message)
-
-proc warn*(message: string) =
-  log(lvlWarn, message)
-
-proc error*(message: string) =
-  log(lvlError, message)
-
-proc fatal*(message: string) =
-  log(lvlFatal, message)

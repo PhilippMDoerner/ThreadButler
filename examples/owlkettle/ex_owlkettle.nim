@@ -1,10 +1,8 @@
-import std/[options, logging, strformat]
+import std/[options]
 import threadButler
 import threadButler/integration/owlButler
 import owlkettle
 import ./widget
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
 proc main() =
   let hub = new(ChannelHub)

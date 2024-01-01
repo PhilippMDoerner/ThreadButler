@@ -1,5 +1,5 @@
 import threadButler
-import std/[sugar, logging, options, strformat, os, async, httpclient]
+import std/[sugar, logging, options, os, async, httpclient]
 
 addHandler(newConsoleLogger())
 
@@ -15,12 +15,11 @@ threadServer(MAIN_THREAD):
   handlers:
     proc handleResponse(msg: Response, hub: ChannelHub) =
       debug "Do"
-      debug "Finally received: ", msg.string
+      debug "Finally received: ", msg = msg.string
     
 threadServer(SERVER_THREAD):
   properties:
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]

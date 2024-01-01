@@ -1,7 +1,5 @@
 import threadButler
-import std/[sugar, logging, options, asyncdispatch, strformat]
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+import std/[sugar, options, asyncdispatch]
 
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
@@ -19,7 +17,7 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) {.async, gcsafe.} =
-      debug "On Client: ", msg.string
+      debug "On Client: ", msg = msg.string
       await sleepAsync(500)
       debug "Post sleep"
       discard hub.sendMessage(Request("Continue: " & msg.string))
@@ -28,7 +26,6 @@ threadServer(SERVER_THREAD):
   properties:
     sleepMs = 100
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]
@@ -38,7 +35,7 @@ threadServer(SERVER_THREAD):
 
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", msg.string
+      debug "On Server: ", msg = msg.string
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()

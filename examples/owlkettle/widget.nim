@@ -2,7 +2,7 @@ import owlkettle
 import threadButler
 import threadButler/integration/owlButler
 import ./servers
-import std/[logging, strformat]
+import std/[strformat]
 
 export servers
 

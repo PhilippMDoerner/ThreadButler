@@ -1,7 +1,6 @@
 import threadButler
-import std/[sugar, logging, options, strformat, os, asyncdispatch]
-
-addHandler(newConsoleLogger(fmtStr="[MAIN $levelname    ] "))
+import std/[sugar, options, os, asyncdispatch]
+import chronicles
 
 const MAIN_THREAD = "main"
 const SERVER_THREAD = "server"
@@ -21,7 +20,7 @@ threadServer(MAIN_THREAD):
     
   handlers:
     proc handleTerminalInput(msg: Input, hub: ChannelHub) =
-      debug "On Main: ", msg.string
+      debug "On Main: ", msg = msg.string
       case msg.string:
       of "kill":
         hub.sendKillMessage(ServerMessage)
@@ -35,14 +34,11 @@ threadServer(MAIN_THREAD):
       discard hub.sendMessage(msg.Ping)
 
     proc handleResponse(msg: Response, hub: ChannelHub) =
-      debug "Finally received: ", msg.string
+      debug "Finally received: ", msg = msg.string
 
     
 threadServer(SERVER_THREAD):
   properties:
-    startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname  ] "))),
-    ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]
 
   messageTypes:
@@ -51,7 +47,7 @@ threadServer(SERVER_THREAD):
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", msg.string
+      debug "On Server: ", msg = msg.string
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
     proc pong(msg: Ping, hub: ChannelHub) {.async.} =
@@ -60,10 +56,7 @@ threadServer(SERVER_THREAD):
 
     
 threadServer(TERMINAL_THREAD):
-  properties:
-    startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[TERMINAL $levelname] "))),
-    ]
+  discard
 
 
 prepareServers()
@@ -91,7 +84,7 @@ proc runMainLoop(hub: ChannelHub) =
         break
       
       except CatchableError as e:
-        error(fmt"Message '{msg.get().repr}' Caused exception: " & e.repr)
+        error "Message caused Exception", msg = msg.get(), error = e.repr
         
     sleep(5)
 

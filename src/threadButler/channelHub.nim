@@ -33,7 +33,10 @@ proc addChannel*[Msg](hub: var ChannelHub, t: typedesc[Msg], capacity: int) =
   let key: pointer = default(Msg).getTypeInfo()
   var channel {.global.} = createChannel[Msg](capacity)
   hub.channels[key] = channel.addr
-  notice fmt"Added: {$t} - key: {cast[uint64](key)} | value: {cast[uint64](channel.addr)}"
+  let keyInt = cast[uint64](key)
+  let channelInt = cast[uint64](channel.addr)
+  let typ = $Msg
+  notice "Added Channel", typ, keyInt, channelInt
 
 when defined(butlerThreading):
   proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): Chan[Msg] {.raises: [ChannelHubError].} =
@@ -67,8 +70,7 @@ else:
     return cast[ptr Channel[Msg]](channelPtr)[]
 
 proc debugSendLog[Msg](msg: Msg, hub: ChannelHub) =
-  let msg = "Thread '" & $getThreadId() & "' => " & $msg
-  debug "send: " & $msg
+  debug "send: Thread => Channel", msg
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =
@@ -91,7 +93,7 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
     )
     
 proc debugReadLog[Msg](msg: Msg, hub: ChannelHub) {.raises: [].} =
-  debug fmt"read: Thread '" & $getThreadId() & "' <= " & msg.repr
+  debug "read: Thread <= Channel", msg
 
 proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
   ## Reads message from the Channel associated with `Msg`.

@@ -1,6 +1,7 @@
 import threadButler
 import threadButler/integration/owlButler
-import std/[logging, sugar]
+import std/[sugar]
+import chronicles
 
 const CLIENT_THREAD* = "client"
 const SERVER_THREAD* = "server"
@@ -10,7 +11,6 @@ type Request* = distinct string
 threadServer(SERVER_THREAD):
   properties:
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]
@@ -29,5 +29,5 @@ owlThreadServer(CLIENT_THREAD):
   
   handlers:
     proc handleResponse(msg: Response, hub: ChannelHub, state: AppState) =
-      debug "On Client: Handling msg: ", msg.string
+      debug "On Client: Handling msg: ", msg = msg.string
       state.receivedMessages.add(msg.string)

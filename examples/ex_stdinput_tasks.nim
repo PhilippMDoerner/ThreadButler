@@ -1,16 +1,15 @@
 import threadButler
 import threadButler/log
-import std/[sugar, options, strformat, os]
+import std/[sugar, options, os]
 import taskpools
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+import chronicles
 
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
 type Response = distinct string
 type Request = distinct string
 
-proc runLate(hub: ChannelHub, loggers: seq[Logger]) {.gcsafe, raises: [].}
+proc runLate(hub: ChannelHub) {.gcsafe, raises: [].}
 
 threadServer(CLIENT_THREAD):
   messageTypes:
@@ -18,7 +17,7 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
-      debug "On Client: ", msg.string
+      debug "On Client: ", msg = msg.string
 
 var threadPool: TaskPool
 
@@ -26,7 +25,6 @@ threadServer(SERVER_THREAD):
   properties:
     taskPoolSize = 2
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initCreateTaskpoolEvent(size = 2, threadPool),
       initEvent(() => debug "Server startin up!"),
     ]
@@ -40,8 +38,8 @@ threadServer(SERVER_THREAD):
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", msg.string
-      threadPool.spawn hub.runLate(getLoggers())
+      debug "On Server: ", msg = msg.string
+      threadPool.spawn hub.runLate()
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()
@@ -66,14 +64,14 @@ proc runClientLoop(hub: ChannelHub) =
     if response.isSome():
       routeMessage(response.get(), hub)
 
-proc runLate(hub: ChannelHub, loggers: seq[Logger]) =
-  loggers.log(lvlDebug, "Start: " & $getThreadId())
+proc runLate(hub: ChannelHub) =
+  debug "Start"
   sleep(1000)
   let msg = "Run with delay: " & $getThreadId()
   try:
     discard hub.sendMessage(msg.Response)
   except ChannelHubError as e:
-    loggers.log(lvlError, "Failed to send message. " & e.repr)
+    error "Failed to send message. ", error = e.repr
 
 proc main() =
   let hub = new(ChannelHub)

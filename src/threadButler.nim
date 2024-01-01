@@ -1,6 +1,7 @@
-import std/[options, tables, asyncdispatch, strformat]
+import std/[options, tables, asyncdispatch]
 import ./threadButler/[types, codegen, channelHub, events, log]
-
+import chronicles
+export chronicles
 ##[  
   .. importdoc:: threadButler/integrations/owlButler
   
@@ -61,7 +62,7 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
           break
         
         except CatchableError as e:
-          log.error(fmt"Message '{msgKind}' Caused exception: " & e.repr)
+          error "Message caused exception", msg, error = e.repr
       
       poll(data.sleepMs)
 

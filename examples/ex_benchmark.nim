@@ -1,6 +1,6 @@
 import threadButler
 import threadButler/channelHub
-import std/[logging, options, times, tables, strformat, sequtils]
+import std/[logging, options, times, tables, sequtils]
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 

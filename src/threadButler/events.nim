@@ -44,7 +44,7 @@ template initCreateTaskpoolEvent*(size: int, taskPoolVar: untyped): Event =
   block:
     proc createTaskpool() =
       taskPoolVar = Taskpool.new(numThreads = size)
-      debug "Create Threadpool" & $cast[uint64](taskPoolVar)
+      debug "Create Threadpool", poolPtr = cast[uint64](taskPoolVar)
     initEvent(() => createTaskpool()) 
 
 template initDestroyTaskpoolEvent*(taskPoolVar: untyped): Event =
@@ -53,6 +53,6 @@ template initDestroyTaskpoolEvent*(taskPoolVar: untyped): Event =
   block:
     proc destroyTaskpool() =
       taskPoolVar.shutDown()
-      debug "Destroy Threadpool" & $cast[uint64](taskPoolVar)
+      debug "Destroy Threadpool", poolPtr = cast[uint64](taskPoolVar)
 
     initEvent(() => destroyTaskpool()) 

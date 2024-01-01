@@ -1,7 +1,6 @@
 import threadButler
-import std/[sugar, logging, options, strformat, os]
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+import std/[sugar, options, os]
+import chronicles
 
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
@@ -14,12 +13,11 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
-      debug "On Client: ", msg.string
+      debug "On Client: ", msg = msg.string
     
 threadServer(SERVER_THREAD):
   properties:
     startUp = @[
-      initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
       initEvent(() => debug "Server startin up!")
     ]
     shutDown = @[initEvent(() => debug "Server shutting down!")]
@@ -29,7 +27,7 @@ threadServer(SERVER_THREAD):
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
-      debug "On Server: ", msg.string
+      debug "On Server: ", msg = msg.string
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()

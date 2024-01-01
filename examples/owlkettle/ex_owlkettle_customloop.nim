@@ -1,10 +1,9 @@
-import std/[options, tables, logging, strformat]
+import std/[options, tables]
 import threadButler
 import threadButler/integration/owlButler
 import owlkettle
 import ./widget
-
-addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
+import chronicles
 
 proc runServerLoop(client: Server[ClientMessage]) {.gcsafe.} =
   # Gui Thread within the context of having a server thread
