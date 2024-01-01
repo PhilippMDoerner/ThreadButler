@@ -20,20 +20,15 @@ Therefore, if you need to supply your own, e.g. because you need to run the [eve
 Just overload the `runServerLoop` proc.
 
 ## [Tasks](https://github.com/PhilippMDoerner/ThreadButler/blob/main/examples/ex_stdinput_tasks.nim)
-ThreadButler allows executing tasks in a separate thread using [status-im/nim-taskpools](https://github.com/status-im/nim-taskpools).
+ThreadButler itself does provide any threadpools.
+However, you can initialize and destroy any threadpool implementation you want 
+using its startUp/shutDown events. 
 
-Just define the `taskPoolSize` property on `threadServer`.
-ThreadButler uses this to determine the size of the thread-local thread-pool.
-That threadpool works on tasks spawned by your threadServer.
+To that end, threadButler provides convenience events to quickly set up:
+  - [status-im/nim-taskpools](https://github.com/status-im/nim-taskpools)
 
-You can turn any proc-call into a task by using the `spawn` syntax:
-```nim
-runAsTask myProc()
-runAsTask myProc(param1, param2)
-```
-
-Keep in min that the threadServer macro does **not** emit the handler procs defined inside of it. 
-This is done by `prepareServers`, so your handler calls a task proc it must be accessible where you call `prepareServers`.
+Keep in mind that the threadServer macro does **not** emit the handler procs defined inside of it. 
+This is done by `prepareServers`. So if a handler spawns a task proc, that task proc must be available where you call `prepareServers`.
 
 ## [No Server](https://github.com/PhilippMDoerner/ThreadButler/blob/main/examples/ex_stdinput_no_server.nim)
 ThreadButler can be useful even without running a dedicated thread as a server.
