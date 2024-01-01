@@ -6,12 +6,10 @@
 #### _They're here to serve_
 **ThreadButler** is a package for multithreading in applications. 
 
-It simplifies setting up "threadServers" - threads that live as long as your application does.
-These threads communicate with your main thread via messages, which trigger registered handler procs.
+It simplifies setting up "threadServers" - threads that live as long as your application does and may also be described as "microservices".
+These threads communicate with your main thread via messages, which trigger procs for handling them on the receiving thread.
 
 ThreadServers act as a "backend" for any heavy computation you do not wish to perform in your client loop. 
-
-This package can also be used if you don't want to spawn a threadServer - the code it generates helps setting up a task-pool for one-off tasks that can send messages back when a task is done.
 
 The message passing is done through nim's [Channels](https://nim-by-example.github.io/channels/).
 
@@ -33,7 +31,7 @@ Add ThreadButler to your .nimble file:
 - Defining and spawning long-running threads with threadServers that receive and send messages 
 - Typesafe message passing
 - Async message handlers
-- Running procs as tasks on a threadPool
+- Running procs as tasks on a threadPool (by creating/destroying via startUp/shutDown events)
 - Customizable ServerLoops
 - Kill-Thread mechanisms
 - Startup/Shutdown events per Thread
@@ -49,7 +47,6 @@ The following statements describe the architecture behind ThreadButler:
 - The ThreadServer's Channel can only carry instances of `<ThreadName>Message`
 - Messages are wrapped in the Object Variant using helper procs `proc sendMessage`
 - Each ThreadServer has its own routing `proc routeMessage`. It "unwraps" the object variant `<ThreadName>Message` and calls the registered handler proc for it.
-- Each ThreadServer has its own (optional) threadPool for one-off tasks (e.g. waiting for a blocking operation).
 Tasks can have access to the ChannelHub to send messages with their results if necessary.
 
 ### General Flow of Actions
