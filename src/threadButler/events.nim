@@ -1,4 +1,6 @@
-import std/[asyncdispatch]
+import std/[asyncdispatch, sugar]
+import taskpools
+import chronicles
 
 ##[
 Defines the Events that should happen when starting a thread-server or when shutting it down
@@ -34,3 +36,23 @@ proc execEvents*(events: seq[Event]) =
   ## Executes a list of events
   for event in events:
     event.exec()
+    
+## Premade Events
+template initCreateTaskpoolEvent*(size: int, taskPoolVar: untyped): Event =
+  ## Convenience Utility for status/nim-taskpools.
+  ## Creates an Event that creates/initializes the threadpool in the variable contained in `taskPoolVar`.
+  block:
+    proc createTaskpool() =
+      taskPoolVar = Taskpool.new(numThreads = size)
+      debug "Create Threadpool" & $cast[uint64](taskPoolVar)
+    initEvent(() => createTaskpool()) 
+
+template initDestroyTaskpoolEvent*(taskPoolVar: untyped): Event =
+  ## Convenience Utility for status/nim-taskpools.
+  ## Creates an Event that destroys the threadpool in the variable contained in `taskPoolVar`.
+  block:
+    proc destroyTaskpool() =
+      taskPoolVar.shutDown()
+      debug "Destroy Threadpool" & $cast[uint64](taskPoolVar)
+
+    initEvent(() => destroyTaskpool()) 

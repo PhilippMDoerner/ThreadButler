@@ -1,6 +1,7 @@
 import threadButler
 import threadButler/log
 import std/[sugar, options, strformat, os]
+import taskpools
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
@@ -18,15 +19,21 @@ threadServer(CLIENT_THREAD):
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
       debug "On Client: ", msg.string
-    
+
+var threadPool: TaskPool
+
 threadServer(SERVER_THREAD):
   properties:
     taskPoolSize = 2
     startUp = @[
       initEvent(() => addHandler(newConsoleLogger(fmtStr="[SERVER $levelname] "))),
-      initEvent(() => debug "Server startin up!")
+      initCreateTaskpoolEvent(size = 2, threadPool),
+      initEvent(() => debug "Server startin up!"),
     ]
-    shutDown = @[initEvent(() => debug "Server shutting down!")]
+    shutDown = @[
+      initDestroyTaskpoolEvent(threadPool),
+      initEvent(() => debug "Server shutting down!")
+    ]
 
   messageTypes:
     Request
@@ -34,7 +41,7 @@ threadServer(SERVER_THREAD):
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
       debug "On Server: ", msg.string
-      runAsTask hub.runLate(getLoggers())
+      threadPool.spawn hub.runLate(getLoggers())
       discard hub.sendMessage(Response("Handled: " & msg.string))
 
 prepareServers()

@@ -1,8 +1,6 @@
-import std/[options, tables, os, asyncdispatch, strformat]
+import std/[options, tables, asyncdispatch, strformat]
 import ./threadButler/[types, codegen, channelHub, events, log]
-import taskpools
 
-export taskpools
 ##[  
   .. importdoc:: threadButler/integrations/owlButler
   
@@ -32,8 +30,6 @@ export events
 export types.Server
 
 type KillError* = object of CatchableError ## A custom error. Throwing this will gracefully shut down the server
-
-var threadPool* {.threadVar.}: TaskPool ## The thread-local thread-pool each threadServer has
 
 var IS_RUNNING* = true ## \
 ## Global switch that controls whether threadServers keep running or shut down.
@@ -73,27 +69,14 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
   data.startUp.execEvents()
 
-  let hasThreadpool =  data.taskPoolSize > 0
-  if hasThreadpool:
-    threadPool = Taskpool.new(numThreads = data.taskPoolSize)
-    debug "threadPool: " & $cast[uint64](threadPool) & " for thread: " & $getThreadId()
-  
   discard sleeper() 
   runServerLoop[Msg](data)
-  
-  if hasThreadpool:
-    debug "threadPool: " & $cast[uint64](threadPool) & " for thread: " & $getThreadId() & " shutting down"
-    threadPool.shutDown()
   
   data.shutDown.execEvents()
 
 proc run[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):
     system.createThread(thread, serverProc[Msg], data)
-
-template runAsTask*(body: untyped) =
-  ## Utility to spawn tasks. You can put any proc-call inside of `body`.
-  threadPool.spawn body
 
 template withServer*(hub: ChannelHub, threadName: static string, body: untyped) =
   ## Spawns the server on the thread associated with `threadName`.

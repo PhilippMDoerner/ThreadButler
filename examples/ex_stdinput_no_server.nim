@@ -1,5 +1,6 @@
 import threadButler
 import std/[logging, options, strformat]
+import taskpools
 
 addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
@@ -7,10 +8,13 @@ type TerminalInput = distinct string
 
 proc requestUserInput(hub: ChannelHub) {.gcsafe, raises: [].}
 
+var threadPool: TaskPool
+
 threadServer("client"):
   properties:
     taskPoolSize = 4
-    
+    startUp = @[initCreateTaskpoolEvent(size = 2, threadPool)]
+    shutDown = @[initDestroyTaskpoolEvent(threadPool)]
   messageTypes:
     TerminalInput
     
@@ -22,7 +26,7 @@ threadServer("client"):
         shutdownServer()
       else:
         debug "New message: ", msg
-        runAsTask requestUserInput(hub)
+        threadPool.spawn requestUserInput(hub)
     
 
 prepareServers()
