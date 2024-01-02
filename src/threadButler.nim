@@ -1,4 +1,4 @@
-import std/[options, tables, asyncdispatch]
+import std/[options, tables, os, asyncdispatch]
 import ./threadButler/[types, codegen, channelHub, events, log]
 import chronicles
 export chronicles
@@ -37,12 +37,6 @@ var IS_RUNNING* = true ## \
 ## Change this value to false to trigger shut down of all threads running
 ## ThreadButler default event-loops.
 
-proc sleeper*() {.async.} =
-  ## Enables using poll without raising ValueErrors by
-  ## registering an endless timer in the thread.
-  while IS_RUNNING:
-    await sleepAsync 10000
-
 proc shutdownServer*() =
   ## Triggers the graceful shut down of the thread-server this proc is called on.
   raise newException(KillError, "Shutdown")
@@ -64,15 +58,17 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
       break
     
     except CatchableError as e:
-      error "Message caused exception", msg, error = e.repr
+      error "Message caused exception", msg = msg.get()[], error = e.repr
     
-    poll(data.sleepMs)
-  
+    if hasPendingOperations():
+      poll(0)
+    else:
+      sleep(data.sleepMs)
+
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
   data.startUp.execEvents()
 
-  discard sleeper() 
   runServerLoop[Msg](data)
   
   data.shutDown.execEvents()
