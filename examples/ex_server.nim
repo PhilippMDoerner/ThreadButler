@@ -41,7 +41,6 @@ threadServer(SERVER_THREAD):
 prepareServers()
 
 proc runClientLoop(hub: ChannelHub) =
-  discard sleeper()
   while IS_RUNNING:
     echo "\nType in a message to send to the Backend!"
     let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
@@ -55,7 +54,8 @@ proc runClientLoop(hub: ChannelHub) =
     
     ## Guarantees that we'll have the response from server before we listen for user input again. 
     ## This is solely for better logging, do not use in actual code.
-    poll(100) 
+    if hasPendingOperations():
+      poll(100) 
     
     let response: Option[ClientMessage] = hub.readMsg(ClientMessage)
     if response.isSome():
