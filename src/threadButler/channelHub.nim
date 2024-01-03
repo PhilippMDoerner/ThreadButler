@@ -5,12 +5,16 @@ when defined(butlerThreading):
   import std/isolation
   
 when defined(butlerThreading):
-  template createChannel[Msg](capacity: int): Chan[Msg] =
-    newChan[Msg](capacity)
+  proc createChannel[Msg](capacity: int): ptr Chan[Msg] =
+    let result = createShared(Chan[Msg])
+    result[] = newChan[Msg](capacity)
+    result
+
 else:
-  template createChannel[Msg](capacity: int): Channel[Msg] =
-    var result = Channel[Msg]()
-    result.open()
+  proc createChannel[Msg](capacity: int): ptr Channel[Msg] =
+    let result = createShared(Channel[Msg])
+    result[] = Channel[Msg]()
+    result[].open()
     result
 
 type ChannelHubError* = object of KeyError
@@ -31,12 +35,12 @@ proc addChannel*[Msg](hub: var ChannelHub, t: typedesc[Msg], capacity: int) =
   ## Instantiates and opens a `Channel` to `hub` specifically for type `Msg`.
   ## This associates it with `Msg`. 
   let key: pointer = default(Msg).getTypeInfo()
-  var channel {.global.} = createChannel[Msg](capacity)
-  hub.channels[key] = channel.addr
+  hub.channels[key] = createChannel[Msg](capacity)
+  
   let keyInt = cast[uint64](key)
-  let channelInt = cast[uint64](channel.addr)
+  let channelInt = cast[uint64](hub.channels[key])
   let typ = $Msg
-  notice "Added Channel", typ, keyInt, channelInt
+  notice "Added Channel", typ, keyInt, channelInt 
 
 when defined(butlerThreading):
   proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): Chan[Msg] {.raises: [ChannelHubError].} =
@@ -78,7 +82,6 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
   ## This is non-blocking.
   ## Returns `bool` stating if sending was successful.
   debugSendLog(msg, hub)
-  
   when defined(butlerThreading):
     let msg = msg.unsafeIsolate()
     
