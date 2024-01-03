@@ -66,6 +66,9 @@ This package is only validated for the ARC/ORC memory management strategies (--m
 
 If you are not familiar with those flags, check out the [nim compiler docs](https://nim-lang.org/docs/nimc.html).
 
+#### No support for --mm:orc when using -d:butlerLoony
+See the associated context in the [LoonyQueue project](https://github.com/nim-works/loony#issues)
+
 #### Must use -d:useMalloc
 Due to memory issues that occurred while running some stress-tests it is currently discouraged to use nim's default memory allocator. Use malloc with `-d:useMalloc` instead.
 

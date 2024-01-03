@@ -1,23 +1,5 @@
 import std/[strformat, options, tables]
 import ./log
-when defined(butlerThreading):
-  import threading/channels
-  import std/isolation
-  
-when defined(butlerThreading):
-  proc createChannel[Msg](capacity: int): ptr Chan[Msg] =
-    let result = createShared(Chan[Msg])
-    result[] = newChan[Msg](capacity)
-    result
-
-else:
-  proc createChannel[Msg](capacity: int): ptr Channel[Msg] =
-    let result = createShared(Channel[Msg])
-    result[] = Channel[Msg]()
-    result[].open()
-    result
-
-type ChannelHubError* = object of KeyError
 
 ##[
 Defines utilities for interacting with a ChannelHub.
@@ -28,22 +10,13 @@ It contains one Channel per registered Thread through which one specific "Messag
 The channel for a given Message-object-variant is stored with (and can thus be retrieved with) data inferred from the object-variant.
 ]##
 
+type ChannelHubError* = object of KeyError
+
 type ChannelHub* = object
   channels*: Table[pointer, pointer]
 
-proc addChannel*[Msg](hub: var ChannelHub, t: typedesc[Msg], capacity: int) =
-  ## Instantiates and opens a `Channel` to `hub` specifically for type `Msg`.
-  ## This associates it with `Msg`. 
-  let key: pointer = default(Msg).getTypeInfo()
-  hub.channels[key] = createChannel[Msg](capacity)
-  
-  let keyInt = cast[uint64](key)
-  let channelInt = cast[uint64](hub.channels[key])
-  let typ = $Msg
-  notice "Added Channel", typ, keyInt, channelInt 
-
-when defined(butlerThreading):
-  proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): Chan[Msg] {.raises: [ChannelHubError].} =
+template generateGetChannelProc(typ: untyped) =
+  proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): var typ[Msg] {.raises: [ChannelHubError].} =
     ## Fetches the `Channel` associated with `Msg` from `hub`.
     let key: pointer = default(t).getTypeInfo()
     var channelPtr: pointer = nil
@@ -55,26 +28,47 @@ when defined(butlerThreading):
         msg: "There is no Channel for the message type '" & msgName & "'.",
         parent: e
       )
-      
-    return cast[ptr Chan[Msg]](channelPtr)[]
     
+    return cast[ptr typ[Msg]](channelPtr)[] 
+
+# CHANNEL SPECIFICS
+when defined(butlerThreading):
+  import pkg/threading/channels
+  import std/isolation
+
+  generateGetChannelProc(Chan)
+
+  proc createChannel[Msg](capacity: int): ptr Chan[Msg] =
+    result = createShared(Chan[Msg])
+    result[] = newChan[Msg](capacity)
+
+elif defined(butlerLoony):
+  import pkg/loony
+
+  generateGetChannelProc(LoonyQueue)
+
+  proc createChannel[Msg](capacity: int): ptr LoonyQueue[Msg] =
+    result = createShared(LoonyQueue[Msg])
+    result[] = newLoonyQueue[Msg]()
+          
+  proc tryRecv[T](c: LoonyQueue[T]): tuple[dataAvailable: bool, msg: T] =
+    let msg = c.pop()
+    result.msg = msg
+    result.dataAvailable = not msg.isNil()
+
+  proc trySend[T](c: LoonyQueue[T]; msg: sink T): bool =
+    c.push(msg)
+    return true
 else:
-  proc getChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]): var Channel[Msg] {.raises: [ChannelHubError].} =
-    ## Fetches the `Channel` associated with `Msg` from `hub`.
-    let key: pointer = default(t).getTypeInfo()
-    var channelPtr: pointer = nil
-    try:
-      channelPtr = hub.channels[key]
-    except KeyError as e:      
-      const msgName = $Msg
-      raise (ref ChannelHubError)(
-        msg: "There is no Channel for the message type '" & msgName & "'.",
-        parent: e
-      )
-    return cast[ptr Channel[Msg]](channelPtr)[]
+  generateGetChannelProc(Channel)
+
+  proc createChannel[Msg](capacity: int): ptr Channel[Msg] =
+    result = createShared(Channel[Msg])
+    result[] = Channel[Msg]()
+    result[].open()
 
 proc debugSendLog[Msg](msg: Msg, hub: ChannelHub) =
-  debug "send: Thread => Channel", msg
+  debug "send: Thread => Channel", msg = msg[]
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =
@@ -88,16 +82,14 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
   try:
     result = hub.getChannel(Msg).trySend(msg) 
     if not result:
-      debug "Failed to send message" 
+      debug "Failed to send message"
+
   except Exception as e:
     raise (ref ChannelHubError)(
       msg: "Error while sending message",
       parent: e
     )
     
-proc debugReadLog[Msg](msg: Msg, hub: ChannelHub) {.raises: [].} =
-  debug "read: Thread <= Channel", msg
-
 proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
   ## Reads message from the Channel associated with `Msg`.
   ## This is non-blocking.
@@ -110,7 +102,19 @@ proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
       hub.getChannel(Msg).tryRecv()
 
   result = if response.dataAvailable:
-      debugReadLog(response.msg, hub)
+      debug "read: Thread <= Channel", msg = response.msg[]
       some(response.msg)
     else:
       none(Msg)
+
+proc addChannel*[Msg](hub: var ChannelHub, t: typedesc[Msg], capacity: int) =
+  ## Instantiates and opens a `Channel` to `hub` specifically for type `Msg`.
+  ## This associates it with `Msg`. 
+  let key: pointer = default(Msg).getTypeInfo()
+  let channel: pointer = createChannel[Msg](capacity) 
+  hub.channels[key] = channel
+  
+  let keyInt = cast[uint64](key)
+  let channelInt = cast[uint64](channel)
+  let typ = $Msg
+  notice "Added Channel", typ, keyInt, channelInt 

@@ -84,7 +84,7 @@ proc runMainLoop(hub: ChannelHub) =
         break
       
       except CatchableError as e:
-        error "Message caused Exception", msg = msg.get(), error = e.repr
+        error "Message caused Exception", msg = msg.get()[], error = e.repr
         
     sleep(5)
 

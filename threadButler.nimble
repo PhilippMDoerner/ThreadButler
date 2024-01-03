@@ -13,6 +13,9 @@ requires "nim >= 2.0.0"
 requires "taskpools >= 0.0.5"
 when defined(butlerThreading):
   requires "threading >= 0.2.0"
+  
+when defined(butlerLoony):
+  requires "https://github.com/nim-works/loony.git >= 0.1.12"
 
 # Example-Dependencies
 requires "owlkettle#head"
@@ -59,6 +62,15 @@ task examples, "compile all examples":
   echo "INFO: ### COMPILE WITH threading/channels.Chan ###"
   for file in findExamples("./examples"):
     let command = fmt"nim c -d:butlerThreading {params} {file}"
+    echo "INFO: Compile ", command
+    exec command
+    
+    echo "INFO: OK"
+    echo "================================================================================"
+
+  echo "INFO: ### COMPILE WITH LoonyQueue ###"
+  for file in findExamples("./examples"):
+    let command = fmt"nim c -d:butlerLoony {params} {file}"
     echo "INFO: Compile ", command
     exec command
     
