@@ -13,6 +13,9 @@ type Request = distinct string
 
 # ======= Define Message Types =======
 threadServer(MAIN_THREAD):
+  properties:
+    shutDown = @[initEvent(() => debug "Main Thread shutting down!")]
+
   messageTypes:
     Response
     Pong
@@ -56,7 +59,9 @@ threadServer(SERVER_THREAD):
 
     
 threadServer(TERMINAL_THREAD):
-  discard
+  properties:
+    shutDown = @[initEvent(() => debug "Main Thread shutting down!")]
+
 
 
 prepareServers()
