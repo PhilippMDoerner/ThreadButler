@@ -71,9 +71,8 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
 
   runServerLoop[Msg](data)
   
-  setGlobalDispatcher(nil)
-  
   data.shutDown.execEvents()
+  setGlobalDispatcher(nil)
 
 proc run[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):

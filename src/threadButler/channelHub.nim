@@ -67,15 +67,12 @@ else:
     result[] = Channel[Msg]()
     result[].open()
 
-proc debugSendLog[Msg](msg: Msg, hub: ChannelHub) =
-  debug "send: Thread => Channel", msg = msg[]
-
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =
   ## Sends a message through the Channel associated with `Msg`.
   ## This is non-blocking.
   ## Returns `bool` stating if sending was successful.
-  debugSendLog(msg, hub)
+  debug "send: Thread => Channel", msg = msg.kind
   when defined(butlerThreading):
     let msg = msg.unsafeIsolate()
     
@@ -102,7 +99,7 @@ proc readMsg*[Msg](hub: ChannelHub, resp: typedesc[Msg]): Option[Msg] =
       hub.getChannel(Msg).tryRecv()
 
   result = if response.dataAvailable:
-      debug "read: Thread <= Channel", msg = response.msg[]
+      debug "read: Thread <= Channel", msg = response.msg.kind
       some(response.msg)
     else:
       none(Msg)
