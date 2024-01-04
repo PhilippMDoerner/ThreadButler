@@ -40,12 +40,16 @@ var IS_RUNNING* = true ## \
 proc shutdownServer*() =
   ## Triggers the graceful shut down of the thread-server this proc is called on.
   raise newException(KillError, "Shutdown")
-  
-proc clearServerChannel[Msg](data: Server[Msg]) =
+
+proc clearServerChannel*[Msg](hub: ChannelHub, t: typedesc[Msg]) =
   ## Throws away remaining messages in the channel.
   ## This avoids those messages leaking should the channel be destroyed.
-  while data.hub.readMsg(Msg).isSome():
+  while hub.readMsg(Msg).isSome():
     discard 
+  
+proc clearServerChannel*[Msg](data: Server[Msg]) =
+  ## Convenience proc for clearServerChannel_
+  data.hub.clearServerChannel(Msg)
 
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
