@@ -41,6 +41,9 @@ when defined(butlerThreading):
   proc createChannel[Msg](capacity: int): ptr Chan[Msg] =
     result = createShared(Chan[Msg])
     result[] = newChan[Msg](capacity)
+  
+  proc destroyChannel*[Msg](chan: Chan[Msg]) =
+    `=destroy`(chan)
 
 elif defined(butlerLoony):
   import pkg/loony
@@ -59,6 +62,11 @@ elif defined(butlerLoony):
   proc trySend[T](c: LoonyQueue[T]; msg: sink T): bool =
     c.push(msg)
     return true
+  
+  proc destroyChannel*[Msg](chan: LoonyQueue[Msg]) =
+    `=destroy`(chan)
+    discard
+
 else:
   generateGetChannelProc(Channel)
 
@@ -66,6 +74,9 @@ else:
     result = createShared(Channel[Msg])
     result[] = Channel[Msg]()
     result[].open()
+
+  proc destroyChannel*[Msg](chan: var Channel[Msg]) =
+    chan.close()
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =

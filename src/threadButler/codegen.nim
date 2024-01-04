@@ -324,13 +324,12 @@ proc genDestroyChannelHubProc*(): NimNode =
     proc destroy*(`hubParam`: ChannelHub) =
       notice "Destroying Channelhub"
   
-  when not defined(butlerThreading) and not defined(butlerLoony): # threading/channels and LoonyQueue don't need to be closed
-    for threadName in getRegisteredThreadnames():
-      let variantType = newIdentNode(threadName.variantName)
-      let closeChannelLine = genAst(hubParam, variantType):
-        hubParam.getChannel(variantType).close()
-        
-      result.body.add(closeChannelLine)
+  for threadName in getRegisteredThreadnames():
+    let variantType = newIdentNode(threadName.variantName)
+    let closeChannelLine = genAst(hubParam, variantType):
+      hubParam.getChannel(variantType).destroyChannel()
+      
+    result.body.add(closeChannelLine)
   
   for threadName in getRegisteredThreadnames():
     let variantType = newIdentNode(threadName.variantName)
