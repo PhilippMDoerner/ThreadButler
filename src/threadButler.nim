@@ -64,7 +64,6 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
         msg = data.hub.readMsg(Msg)
 
     except KillError:
-      clearServerChannel[Msg](data)
       break
     
     except CatchableError as e:

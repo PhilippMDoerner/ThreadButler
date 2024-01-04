@@ -327,19 +327,14 @@ proc genDestroyChannelHubProc*(): NimNode =
   for threadName in getRegisteredThreadnames():
     let variantType = newIdentNode(threadName.variantName)
     let closeChannelLine = genAst(hubParam, variantType):
+      hubParam.clearServerChannel(variantType)
       hubParam.getChannel(variantType).destroyChannel()
+      let channelPtr = hubParam.getChannel(variantType).addr
+      freeShared(channelPtr)
+      notice "Destroyed Channel ", typ = $variantType, channelInt = cast[uint64](channelPtr)
       
     result.body.add(closeChannelLine)
   
-  for threadName in getRegisteredThreadnames():
-    let variantType = newIdentNode(threadName.variantName)
-    let freeChannelLine = genAst(hubParam, variantType):
-      let channelPtr = hubParam.getChannel(variantType).addr
-      freeShared(channelPtr)
-    
-      notice "Destroyed Channel ", typ = $variantType, channelInt = cast[uint64](channelPtr)
-    result.body.add(freeChannelLine)
-
 proc genSendKillMessageProc*(name: ThreadName): NimNode =
   ## Generates a proc `sendKillMessage`.
   ## 
