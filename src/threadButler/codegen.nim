@@ -338,6 +338,7 @@ proc genDestroyChannelHubProc*(): NimNode =
       let channelPtr = hubParam.getChannel(variantType).addr
       freeShared(channelPtr)
     
+      notice "Destroyed Channel ", typ = $variantType, channelInt = cast[uint64](channelPtr)
     result.body.add(freeChannelLine)
 
 proc genSendKillMessageProc*(name: ThreadName): NimNode =

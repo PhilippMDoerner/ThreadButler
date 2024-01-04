@@ -41,6 +41,11 @@ proc shutdownServer*() =
   ## Triggers the graceful shut down of the thread-server this proc is called on.
   raise newException(KillError, "Shutdown")
   
+proc clearServerChannel[Msg](data: Server[Msg]) =
+  ## Throws away remaining messages in the channel.
+  ## This avoids those messages leaking should the channel be destroyed.
+  while data.hub.readMsg(Msg).isSome():
+    discard 
 
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
@@ -55,6 +60,7 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
         msg = data.hub.readMsg(Msg)
 
     except KillError:
+      clearServerChannel[Msg](data)
       break
     
     except CatchableError as e:
@@ -74,7 +80,7 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   data.shutDown.execEvents()
   setGlobalDispatcher(nil)
 
-proc run[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
+proc run*[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):
     system.createThread(thread, serverProc[Msg], data)
 
