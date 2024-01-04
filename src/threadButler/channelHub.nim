@@ -12,7 +12,7 @@ The channel for a given Message-object-variant is stored with (and can thus be r
 
 type ChannelHubError* = object of KeyError
 
-type ChannelHub* = ref object
+type ChannelHub* = object
   channels*: Table[pointer, pointer]
 
 template generateGetChannelProc(typ: untyped) =
