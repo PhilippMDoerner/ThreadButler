@@ -97,5 +97,5 @@ proc main() =
     echo "\nCPU time for Large Messages (in s): ", t3 - t2, "s"
     echo "LargeMessages: Sent: ", largeSendCounter, " - Received: ", largeReceivedCounter, " - Failed: ", largeFailCounter
   
-  destroy(hub)
+  # destroy(hub)
 main()

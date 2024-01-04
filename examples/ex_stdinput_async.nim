@@ -14,7 +14,6 @@ threadServer(MAIN_THREAD):
   
   handlers:
     proc handleResponse(msg: Response, hub: ChannelHub) =
-      debug "Do"
       debug "Finally received: ", msg = msg.string
     
 threadServer(SERVER_THREAD):
@@ -49,6 +48,7 @@ hub.withServer(SERVER_THREAD):
       case terminalInput
       of "kill", "q", "quit":
         hub.sendKillMessage(ServerMessage)
+        hub.clearServerChannel(MainMessage)
         break
       else:
         let msg = terminalInput.Request

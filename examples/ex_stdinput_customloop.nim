@@ -71,6 +71,7 @@ proc runServerLoop(data: Server[TerminalMessage]) {.gcsafe.} =
     
     let msg: Option[TerminalMessage] = data.hub.readMsg(TerminalMessage)
     if msg.isSome() and msg.get().kind == KillTerminalKind:
+      data.hub.clearServerChannel(TerminalMessage)
       break
 
 # ======= Define ServerLoop for Main Thread =======
@@ -81,6 +82,7 @@ proc runMainLoop(hub: ChannelHub) =
       try:
         routeMessage(msg.get(), hub)
       except KillError:
+        hub.clearServerChannel(MainMessage)
         break
       
       except CatchableError as e:

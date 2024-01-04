@@ -47,6 +47,7 @@ proc main() =
   requestUserInput(hub)
   let server = initServer(hub, ClientMessage)
   serverProc[ClientMessage](server)
+  hub.clearServerChannel(ClientMessage)
   
   destroy(hub)
 

@@ -38,6 +38,7 @@ proc runClientLoop(hub: ChannelHub) =
     let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
     if terminalInput == "kill":
       hub.sendKillMessage(ServerMessage)
+      hub.clearServerChannel(ClientMessage)
       break
     
     elif terminalInput.len() > 0:
