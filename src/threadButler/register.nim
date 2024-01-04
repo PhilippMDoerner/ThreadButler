@@ -1,4 +1,4 @@
-import std/[macros, macrocache, strformat, options]
+import std/[macros, sequtils, macrocache, strformat, options]
 import ./utils
 
 ## Deals with storing procs and types in the CacheTables `types` (typeTable) and `routes` (routeTable). 
@@ -20,6 +20,7 @@ const properties = CacheTable"propertiesTable" ## \
 ## The properties are stoerd in a StatementList-NimNode for later retrieval,
 ## turning this effectively in a complicated Version of CacheTable[string, CacheSeq]
 
+const registeredThreads = CacheSeq"threads"
 
 type ThreadName* = distinct string
 proc `==`*(x, y: ThreadName): bool {.borrow.}
@@ -145,18 +146,6 @@ proc hasRoutes*(name: ThreadName): bool =
 
 proc hasTypes*(name: ThreadName): bool =
   name.getTypes().len > 0
-
-proc getRegisteredThreadnames*(): seq[ThreadName] =
-  ## Fetches all threads for which either types or handler procs were registered.
-  for key, _ in routes:
-    let name = key.ThreadName
-    if name notin result:
-      result.add(name)
-
-  for key, _ in types:
-    let name = key.ThreadName
-    if name notin result:
-      result.add(name)
     
 proc addProperty*(name: ThreadName, property: NimNode) =
   property.assertKind(@[nnkCall, nnkAsgn], "You need a property assignment with ':' or '=' to add a property")
@@ -179,3 +168,10 @@ proc getProperties*(name: ThreadName): seq[NimNode] =
 
   for property in properties[name]:
     result.add(property)
+
+proc registerThread*(name: ThreadName) =
+  let node = newStrLitNode(name.string)
+  registeredThreads.add(node)
+
+proc getRegisteredThreadnames*(): seq[ThreadName] =
+  registeredThreads.mapIt(ThreadName($it))

@@ -448,7 +448,7 @@ macro threadServer*(name: static string, body: untyped) =
   body.expectKind(nnkStmtList)
   let name = name.ThreadName
   body.validateSectionNames()
-  
+  name.registerThread()
   let sections = body.getSections()
   
   let hasTypes = sections.hasKey(MessageTypes)
