@@ -11,6 +11,7 @@ srcDir        = "src"
 
 requires "nim >= 2.0.0"
 requires "taskpools >= 0.0.5"
+requires "chronicles >= 0.10.3"
 when defined(butlerThreading):
   requires "threading >= 0.2.0"
   
