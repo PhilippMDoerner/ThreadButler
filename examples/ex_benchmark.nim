@@ -6,7 +6,7 @@ addHandler(newConsoleLogger(fmtStr="[CLIENT $levelname] "))
 
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "backend"
-const MESSAGE_COUNT = 50_000
+const MESSAGE_COUNT = 50_00
 const SEQ_SIZE = 10_000
 
 var smallReceivedCounter = 0
@@ -96,4 +96,6 @@ proc main() =
 
     echo "\nCPU time for Large Messages (in s): ", t3 - t2, "s"
     echo "LargeMessages: Sent: ", largeSendCounter, " - Received: ", largeReceivedCounter, " - Failed: ", largeFailCounter
+  
+  destroy(hub)
 main()

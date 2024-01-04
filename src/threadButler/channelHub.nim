@@ -77,6 +77,7 @@ else:
 
   proc destroyChannel*[Msg](chan: var Channel[Msg]) =
     chan.close()
+    `=destroy`(chan)
 
 const SEND_PROC_NAME* = "sendMsgToChannel"
 proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [ChannelHubError].} =
