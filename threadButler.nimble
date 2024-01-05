@@ -115,7 +115,7 @@ task docs, "Generate the nim docs":
   for paramSet in paramSets:
     echoSeparator()
     let paramStr = paramSet.join(" ")
-    let command = fmt"nim doc --git.url:git@github.com:PhilippMDoerner/ThreadButler.git --git.commit:master --hints:off {paramStr}"
+    let command = fmt"nim doc -d:butlerDocs --git.url:git@github.com:PhilippMDoerner/ThreadButler.git --git.commit:master --hints:off {paramStr}"
     echo "Command: ", command
     exec command
   
