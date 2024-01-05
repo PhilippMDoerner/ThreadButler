@@ -57,10 +57,11 @@ proc clearThreadVariables() =
   ## Internally, this clears up known thread variables
   ## that were likely set to avoid memory leaks.
   ## May become unnecessary if https://github.com/nim-lang/Nim/issues/23165 ever gets fixed
-  setGlobalDispatcher(nil)
-  times.localInstance = nil
-  times.utcInstance = nil
-  system.roots.deinit() # from orc.nim. Has no destructor.
+  when not defined(butlerDocs):
+    setGlobalDispatcher(nil)
+    times.localInstance = nil
+    times.utcInstance = nil
+    system.roots.deinit() # from orc.nim. Has no destructor.
   
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
