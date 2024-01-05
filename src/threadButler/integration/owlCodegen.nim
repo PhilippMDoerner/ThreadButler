@@ -27,6 +27,7 @@ macro owlThreadServer*(name: static string, body: untyped) =
   body.expectKind(nnkStmtList)
   let name = name.ThreadName
   body.validateSectionNames()
+  name.registerThread()
   owlThreads.add(newStrLitNode(name.string))
   
   let sections = body.getSections()
