@@ -35,6 +35,7 @@ template generateGetChannelProc(typ: untyped) =
 when defined(butlerThreading):
   import pkg/threading/channels
   import std/isolation
+  export channels
 
   generateGetChannelProc(Chan)
 
@@ -47,6 +48,7 @@ when defined(butlerThreading):
 
 elif defined(butlerLoony):
   import pkg/loony
+  export loony
 
   generateGetChannelProc(LoonyQueue)
 

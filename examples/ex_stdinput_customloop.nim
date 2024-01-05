@@ -1,5 +1,5 @@
 import threadButler
-import std/[sugar, options, os, asyncdispatch]
+import std/[sugar, options, os]
 import chronicles
 
 const MAIN_THREAD = "main"
@@ -18,7 +18,6 @@ threadServer(MAIN_THREAD):
 
   messageTypes:
     Response
-    Pong
     Input
     
   handlers:
@@ -32,10 +31,6 @@ threadServer(MAIN_THREAD):
       else:
         discard hub.sendMessage(msg.Request)
 
-    proc ping(msg: Pong, hub: ChannelHub) {.async.} =
-      await sleepAsync(10_000)
-      discard hub.sendMessage(msg.Ping)
-
     proc handleResponse(msg: Response, hub: ChannelHub) =
       debug "Finally received: ", msg = msg.string
 
@@ -45,17 +40,12 @@ threadServer(SERVER_THREAD):
     shutDown = @[initEvent(() => debug "Server shutting down!")]
 
   messageTypes:
-    Ping 
     Request
     
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
       debug "On Server: ", msg = msg.string
       discard hub.sendMessage(Response("Handled: " & msg.string))
-
-    proc pong(msg: Ping, hub: ChannelHub) {.async.} =
-      await sleepAsync(10_000)
-      discard hub.sendMessage(msg.Pong)
 
     
 threadServer(TERMINAL_THREAD):
@@ -88,6 +78,7 @@ proc runMainLoop(hub: ChannelHub) =
         routeMessage(msg.get(), hub)
       except KillError:
         hub.clearServerChannel(MainMessage)
+        debug "Cleared MainMessage"
         break
       
       except CatchableError as e:
@@ -99,7 +90,6 @@ proc main() =
   let hub = new(ChannelHub)
   
   hub.withServer(SERVER_THREAD):
-    discard hub.sendMessage(0.Ping)
     hub.withServer(TERMINAL_THREAD):
       runMainLoop(hub)
   

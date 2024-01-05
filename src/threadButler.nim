@@ -1,6 +1,8 @@
 import std/[options, tables, os, asyncdispatch]
 import ./threadButler/[types, codegen, channelHub, events, log]
 import chronicles
+import std/times {.all.} # Only needed for `clearThreadVariables`
+import system {.all.} # Only needed for `clearThreadVariables`
 export chronicles
 ##[  
   .. importdoc:: threadButler/integrations/owlButler
@@ -51,6 +53,15 @@ proc clearServerChannel*[Msg](data: Server[Msg]) =
   ## Convenience proc for clearServerChannel_
   data.hub.clearServerChannel(Msg)
 
+proc clearThreadVariables() =
+  ## Internally, this clears up known thread variables
+  ## that were likely set to avoid memory leaks.
+  ## May become unnecessary if https://github.com/nim-lang/Nim/issues/23165 ever gets fixed
+  setGlobalDispatcher(nil)
+  times.localInstance = nil
+  times.utcInstance = nil
+  system.roots.deinit() # from orc.nim. Has no destructor.
+  
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
 
@@ -81,7 +92,7 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   runServerLoop[Msg](data)
   
   data.shutDown.execEvents()
-  setGlobalDispatcher(nil)
+  clearThreadVariables()
 
 proc run*[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):
