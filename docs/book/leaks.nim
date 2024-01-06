@@ -16,7 +16,7 @@ If you don't do that, it is unlikely to be a problem since the `threadServer`s s
 
 It may however annoy you if you want to use tools such as address sanitizers or valgrind to check your own program for memory leaks.
 
-### How do can I see if I have a problem?
+### How can I see if I have a problem?
 You can use valgrind or address sanitiziers. This project itself is only validated using address sanitizers.
 
 For detailed docs on their general usage refer to the link above. 

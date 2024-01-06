@@ -80,3 +80,7 @@ threading/channels require a message be isolateable before sending it. This is t
 However, ref-types can not be properly isolated when users pass them into the various sending procs, as the compiler can not reason about whether the user still has references to that data somewhere and may access it.
 
 There are currently no mechanisms to do anything about this, so ThreadButler disables those isolation checks. The burden is therefore on you, the user. You must ensure to **never acccess** a message's memory after you pass it to any of ThreadButler's sending procs. If you do, even if it works, don't. It is undefined behaviour and **will** cause segfaults eventually, if only because you upgraded the nim version to the next patch version.
+
+#### Having logging enabled is not datarace-safe
+
+Currently logging inside the package is done through chronicles, which so far appears to not be free of data-races based on current tests with thread-sanitizers. Disable it as per their docs if you want to have the safety.
