@@ -59,13 +59,12 @@ proc clearThreadVariables*() =
   ## May become unnecessary if https://github.com/nim-lang/Nim/issues/23165 ever gets fixed
   when not defined(butlerDocs):
     {.cast(gcsafe).}:
-      `=destroy`(getGlobalDispatcher())
+      setGlobalDispatcher(nil)
       times.localInstance = nil
       times.utcInstance = nil
       when defined(orc):
         GC_fullCollect(system.roots) # from orc.nim. Has no destructor.
-        system.roots.deinit()
-  
+
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
 

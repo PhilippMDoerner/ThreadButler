@@ -6,10 +6,8 @@
 # To run these tests, simply execute `nimble test`.
 
 import balls
-
 import threadButler
-import std/[sugar, options, os]
-
+import std/[sugar, options, os, asyncdispatch]
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
 type Response = distinct string
@@ -37,21 +35,22 @@ threadServer(SERVER_THREAD):
 
 prepareServers()
 
-proc main() =
-  let hub = new(ChannelHub)
-  
-  hub.withServer(SERVER_THREAD):
-    let success = hub.sendMessage("TestMessage".Request)
-    doAssert success == true
-    
-    var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
-    while response.isNone():
-      response = hub.readMsg(ClientMessage)
-    routeMessage(response.get(), hub) 
+# suite "Base Example":
+#   block: 
+let hub = new(ChannelHub)
 
-  hub.destroy()
+hub.withServer(SERVER_THREAD):
+  let success = hub.sendMessage("TestMessage".Request)
+  doAssert success == true
   
-  doAssert requests == @["TestMessage"]
-  doAssert responses == @["Ping"]
+  var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
+  while response.isNone():
+    response = hub.readMsg(ClientMessage)
+  routeMessage(response.get(), hub) 
 
-main()
+hub.destroy()
+# `=destroy`(getGlobalDispatcher())
+setGlobalDispatcher(nil)
+  
+check requests == @["TestMessage"], "Server did not receive Requests correctly"
+check responses == @["Ping"], "Client did not receive Responses correctly"
