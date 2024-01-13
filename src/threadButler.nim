@@ -53,15 +53,18 @@ proc clearServerChannel*[Msg](data: Server[Msg]) =
   ## Convenience proc for clearServerChannel_
   data.hub.clearServerChannel(Msg)
 
-proc clearThreadVariables() =
+proc clearThreadVariables*() =
   ## Internally, this clears up known thread variables
   ## that were likely set to avoid memory leaks.
   ## May become unnecessary if https://github.com/nim-lang/Nim/issues/23165 ever gets fixed
   when not defined(butlerDocs):
-    setGlobalDispatcher(nil)
-    times.localInstance = nil
-    times.utcInstance = nil
-    system.roots.deinit() # from orc.nim. Has no destructor.
+    {.cast(gcsafe).}:
+      `=destroy`(getGlobalDispatcher())
+      times.localInstance = nil
+      times.utcInstance = nil
+      when defined(orc):
+        GC_fullCollect(system.roots) # from orc.nim. Has no destructor.
+        system.roots.deinit()
   
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
@@ -83,14 +86,15 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
     
     if hasPendingOperations():
       poll(0)
-    else:
-      sleep(data.sleepMs)
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
   data.startUp.execEvents()
 
   runServerLoop[Msg](data)
+  
+  while hasPendingOperations():
+    poll()
   
   data.shutDown.execEvents()
   clearThreadVariables()

@@ -18,6 +18,9 @@ when defined(butlerThreading):
 when defined(butlerLoony):
   requires "https://github.com/nim-works/loony.git >= 0.1.12"
 
+# Dev Dependencies
+requires "https://github.com/disruptek/balls#v4"
+
 # Example-Dependencies
 requires "owlkettle#head"
 
@@ -160,6 +163,21 @@ task stress, "Runs the stress test permanently. For memory leak detection":
   let paramStr = params.join(" ")
   let command = fmt"nim r {paramStr} examples/stresstest.nim"
   echo fmt"INFO Running Stresstest: {command}"
+  exec command
+
+task tests, "Runs the test-suite":
+  let params = @[
+    "--mm:arc",
+    "--mm:orc",
+    "--debugger:native",
+    "--threads:on",
+    """--passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
+    """--passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
+    "-d:chronicles_enabled=off",
+    "-d:useMalloc"
+  ]
+  let paramsStr = params.join(" ")
+  let command = fmt"balls {paramsStr}"
   exec command
 
 task nimidocs, "Compiles the nimibook docs":
