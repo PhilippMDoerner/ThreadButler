@@ -62,8 +62,8 @@ proc clearThreadVariables*() =
       setGlobalDispatcher(nil)
       times.localInstance = nil
       times.utcInstance = nil
-      when defined(orc):
-        GC_fullCollect(system.roots) # from orc.nim. Has no destructor.
+      when defined(gcOrc):
+        GC_fullCollect() # from orc.nim. Has no destructor.
 
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
