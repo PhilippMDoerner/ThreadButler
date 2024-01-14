@@ -173,6 +173,25 @@ task tests, "Runs the test-suite":
   let paramsStr = params.join(" ")
   let command = fmt"ballsan {paramsStr}"
   exec command
+  
+task runTest, "Runs a single test file with asan or tsan":
+  let params = @[
+    "--cc:clang",
+    "--debugger:native",
+    "--threads:on",
+    "-d:butlerThreading",
+    """--passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
+    "-d:chronicles_enabled=off",
+    "-d:useMalloc",
+  ]
+  let paramsStr = params.join(" ")
+  let file = commandLineParams[^1]
+  
+  for sanitizer in ["address", "thread"]:
+    for memoryModel in ["arc", "orc"]:
+      let arcCommand = fmt"""nim r --mm:{memoryModel} --passl:"-fsanitize={sanitizer}" --passc:"-fsanitize={sanitizer}" {paramsStr} tests/{file}"""
+      echo arcCommand
+      exec arcCommand
 
 task nimidocs, "Compiles the nimibook docs":
   rmDir "docs/bookCompiled"
