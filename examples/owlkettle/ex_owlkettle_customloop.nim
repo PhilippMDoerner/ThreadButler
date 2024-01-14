@@ -20,7 +20,7 @@ proc main() =
   
   hub.withServer(SERVER_THREAD): # Runs "Backend" Server
     hub.withServer(CLIENT_THREAD): # Runs owlkettle gui
-      while IS_RUNNING:
+      while keepRunning():
         let terminalInput = readLine(stdin)
         discard hub.sendMessage(terminalInput.Response)
   destroy(hub)

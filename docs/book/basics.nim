@@ -132,7 +132,7 @@ prepareServers()
 let hub = new(ChannelHub)
 
 withServer(hub, "server"):
-  while IS_RUNNING:
+  while keepRunning():
     echo "\nType in a message to send to the Backend!"
     let terminalInput = readLine(stdin)
     case terminalInput
@@ -168,8 +168,9 @@ This instantiates the one instance of `ChannelHub` that will be used everywhere.
 
 Inside of the scope of `withServer` we can then define the "event-loop" code that should run on the main-thread which has executed the code so far.
 
-We're using the global `IS_RUNNING` variable of threadButlers. It is a value used and shared by the default event-loop that threadButler provides. 
-Setting it to false shuts down all servers after their current event-loop iteration finishes.
+ThreadButler has a global switch that can be used to shut all remaining servers off. 
+We're using that switch by using `keepRunning()`, which will return false if `shutdownAllServers()` is ever called. 
+Every thread spawned by thredButler with its default event-loop uses that switch. 
 
 We then stop the loop to listen for user-input and do not continue until user-input was provided.
 
@@ -224,12 +225,12 @@ nbCode:
   prepareServers()
 
   # === Bringing it all together === #
-  when defined(butlerDocs):
-    IS_RUNNING = false ## Needed so that compiling the docs does not run the server
+  when defined(butlerDocs): ## Needed so that compiling the docs does not run the server
+    shutdownAllServers() 
 
   let hub = new(ChannelHub)
   hub.withServer(SERVER_THREAD):
-    while IS_RUNNING:
+    while keepRunning():
       echo "\nType in a message to send to the Backend!"
       # This is blocking, so this while-loop stalls here until the user hits enter. 
       # Thus the entire loop only runs once whenever the user hits enter. 

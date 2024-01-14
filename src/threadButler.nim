@@ -1,4 +1,4 @@
-import std/[options, tables, os, asyncdispatch]
+import std/[options, tables, os, atomics, asyncdispatch]
 import ./threadButler/[types, codegen, channelHub, events, log]
 import chronicles
 import std/times {.all.} # Only needed for `clearThreadVariables`
@@ -34,10 +34,14 @@ export types.Server
 
 type KillError* = object of CatchableError ## A custom error. Throwing this will gracefully shut down the server
 
-var IS_RUNNING* = true ## \
+var IS_RUNNING*: Atomic[bool] ## \
 ## Global switch that controls whether threadServers keep running or shut down.
 ## Change this value to false to trigger shut down of all threads running
 ## ThreadButler default event-loops.
+IS_RUNNING.store(true)
+
+proc keepRunning*(): bool = IS_RUNNING.load()
+proc shutdownAllServers*() = IS_RUNNING.store(false)
 
 proc shutdownServer*() =
   ## Triggers the graceful shut down of the thread-server this proc is called on.
@@ -68,7 +72,7 @@ proc clearThreadVariables*() =
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
 
-  while IS_RUNNING:
+  while keepRunning():
     var msg: Option[Msg] = data.hub.readMsg(Msg)
     try:
       while msg.isSome():

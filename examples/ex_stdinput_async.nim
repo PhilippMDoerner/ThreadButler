@@ -39,7 +39,7 @@ let hub = new(ChannelHub)
 
 hub.withServer(SERVER_THREAD):
   when not defined(butlerDocs):
-    while IS_RUNNING:
+    while keepRunning():
       echo "\nType in a message to send to the Backend for a google request!"
       # This is blocking, so this while-loop stalls here until the user hits enter. 
       # Thus the entire loop only runs once whenever the user hits enter. 

@@ -59,7 +59,7 @@ prepareServers()
 # ======= Define Custom ServerLoop for Terminal Thread =======
 proc runServerLoop(data: Server[TerminalMessage]) {.gcsafe.} =
   debug "Starting up custom Server Loop"
-  while IS_RUNNING:
+  while keepRunning():
     let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
     debug "From Terminal ", terminalInput
     discard data.hub.sendMessage(terminalInput.Input)
@@ -71,7 +71,7 @@ proc runServerLoop(data: Server[TerminalMessage]) {.gcsafe.} =
 
 # ======= Define ServerLoop for Main Thread =======
 proc runMainLoop(hub: ChannelHub) =
-  while IS_RUNNING:
+  while keepRunning():
     let msg: Option[MainMessage] = hub.readMsg(MainMessage)
     if msg.isSome():
       try:

@@ -61,7 +61,7 @@ proc main() =
   let exampleLarge = LargeMessage(lotsOfNumbers: (0..SEQ_SIZE).toSeq()).LargeRequest
 
   hub.withServer(SERVER_THREAD_NAME):
-    while IS_RUNNING:
+    while keepRunning():
       var t0 = cpuTime()
       for _ in 1..MESSAGE_COUNT:
         smallSendCounter.inc

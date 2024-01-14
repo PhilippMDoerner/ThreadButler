@@ -45,7 +45,7 @@ threadServer(SERVER_THREAD):
 prepareServers()
 
 proc runClientLoop(hub: ChannelHub) =
-  while IS_RUNNING:
+  while keepRunning():
     echo "\nType in a message to send to the Backend!"
     let terminalInput = readLine(stdin) # This is blocking, so this while-loop doesn't run and thus no responses are read unless the user puts something in
     if terminalInput == "kill":

@@ -41,7 +41,7 @@ method view(app: AppState): Widget =
         Button():
           Label(text = "Murder")
           proc clicked() =
-            IS_RUNNING = false
+            shutdownAllServers()
         
         Separator(margin = Margin(top: 24, bottom: 24, left: 0, right: 0))
         
