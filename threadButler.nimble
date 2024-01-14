@@ -166,22 +166,23 @@ task tests, "Runs the test-suite":
     "--debugger:native",
     "--threads:on",
     "-d:butlerThreading",
-    """--passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
+    """--passc:\"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer\" """,
     "-d:chronicles_enabled=off",
     "-d:useMalloc",
   ]
   let paramsStr = params.join(" ")
-  let command = fmt"ballsan {paramsStr}"
+  let command = fmt"balls {paramsStr}"
   exec command
   
 task runTest, "Runs a single test file with asan or tsan":
   let params = @[
     "--cc:clang",
     "--debugger:native",
-    "--threads:on",
-    "-d:butlerThreading",
     """--passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
     "-d:chronicles_enabled=off",
+    "--threads:on",
+    "-d:butlerThreading",
+    "-d:danger",
     "-d:useMalloc",
   ]
   let paramsStr = params.join(" ")
@@ -189,9 +190,9 @@ task runTest, "Runs a single test file with asan or tsan":
   
   for sanitizer in ["address", "thread"]:
     for memoryModel in ["arc", "orc"]:
-      let arcCommand = fmt"""nim r --mm:{memoryModel} --passl:"-fsanitize={sanitizer}" --passc:"-fsanitize={sanitizer}" {paramsStr} tests/{file}"""
-      echo arcCommand
-      exec arcCommand
+      let command = fmt"""nim r --mm:{memoryModel} --passl:"-fsanitize={sanitizer}" --passc:"-fsanitize={sanitizer}" {paramsStr} tests/{file}"""
+      echo command
+      exec command
 
 task nimidocs, "Compiles the nimibook docs":
   rmDir "docs/bookCompiled"

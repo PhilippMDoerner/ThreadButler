@@ -1,13 +1,13 @@
 import balls
 import threadButler
-import std/[sugar, options, os, sequtils, asyncdispatch]
+import std/[sugar, options, os, atomics, sequtils, asyncdispatch]
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
 type Response = distinct int
 type Request = distinct int
 
-var responses: seq[int] = @[]
-var requests: seq[int] = @[]
+var responses: Atomic[int]
+var requests: Atomic[int]
 var clientThreadStartupCounter: int = 0
 var clientThreadShutdownCounter: int = 0
 var serverThreadStartupCounter: int = 0
@@ -23,7 +23,7 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
-      responses.add(msg.int)
+      responses.atomicInc
 
 threadServer(SERVER_THREAD):
   properties:
@@ -36,11 +36,13 @@ threadServer(SERVER_THREAD):
 
   handlers:
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.async.} = 
-      requests.add(msg.int)
+      requests.atomicInc
       await sleepAsync(10)
       discard hub.sendMessage(Response(msg.int + 1))
 
 prepareServers()
+
+const MESSAGE_COUNT = 10
 
 suite "Single Server Example":
   let hub = new(ChannelHub)
@@ -48,10 +50,10 @@ suite "Single Server Example":
   block whenBlock: 
     discard "When SERVER_THREAD gets started and the main thread sends 10 messages with the numbers 0-9"
     hub.withServer(SERVER_THREAD):
-      for i in 0..<10:
+      for i in 0..<MESSAGE_COUNT:
         while not hub.sendMessage(i.Request): discard
       
-      while responses.len() < 10:
+      while responses.load() != MESSAGE_COUNT:
         var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
         if response.isSome():
           routeMessage(response.get(), hub) 
@@ -70,8 +72,8 @@ suite "Single Server Example":
   
   block thenBlock: 
     discard "Then SERVER_THREAD should fill requests with the numbers 0-9 and send the responses 1-10 to the main thread"
-    check requests == (0..9).toSeq(), "Server did not receive Requests correctly"
-    check responses == (1..10).toSeq(), "Client did not receive Responses correctly"
+    check requests.load() == MESSAGE_COUNT, "Server did not receive Requests correctly"
+    check responses.load() == MESSAGE_COUNT, "Client did not receive Responses correctly"
 
   block thenBlock:
     discard "Then channel for ClientMessage should be empty"
