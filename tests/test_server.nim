@@ -72,4 +72,9 @@ suite "Single Server Example":
     check requests == (0..9).toSeq(), "Server did not receive Requests correctly"
     check responses == (1..10).toSeq(), "Client did not receive Responses correctly"
 
+  block thenBlock:
+    discard "Then channel for ClientMessage should be empty"
+    check hub.getChannel(ClientMessage).peek() == 0
+    check hub.getChannel(ServerMessage).peek() == 0
+  
   hub.destroy()
