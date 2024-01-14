@@ -88,7 +88,9 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
       error "Message caused exception", msg = msg.get()[], error = e.repr
     
     if hasPendingOperations():
-      poll(0)
+      drain(data.sleepMs)
+    else:
+      sleep(data.sleepMs)
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
