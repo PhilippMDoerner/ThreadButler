@@ -13,7 +13,7 @@ requires "nim >= 2.0.0"
 requires "taskpools >= 0.0.5"
 requires "chronicles >= 0.10.3"
 when defined(butlerThreading):
-  requires "threading >= 0.2.0"
+  requires "threading#head"
   
 when defined(butlerLoony):
   requires "https://github.com/nim-works/loony.git >= 0.1.12"
@@ -54,32 +54,25 @@ task example, "run a single example from the examples directory":
 
 task examples, "compile all examples":
   let params = commandLineParams.filterIt(it.startsWith("-")).join(" ")
-  echo "INFO: ### COMPILE WITH std/system.Channels ###"
-  for file in findExamples("./examples"):
-    let command = fmt"nim c {params} {file}"
-    echo "INFO: Compile ", command
-    exec command
-    
-    echo "INFO: OK"
-    echo "================================================================================"
-
-  echo "INFO: ### COMPILE WITH threading/channels.Chan ###"
-  for file in findExamples("./examples"):
-    let command = fmt"nim c -d:butlerThreading {params} {file}"
-    echo "INFO: Compile ", command
-    exec command
-    
-    echo "INFO: OK"
-    echo "================================================================================"
-
-  echo "INFO: ### COMPILE WITH LoonyQueue ###"
-  for file in findExamples("./examples"):
-    let command = fmt"nim c -d:butlerLoony {params} {file}"
-    echo "INFO: Compile ", command
-    exec command
-    
-    echo "INFO: OK"
-    echo "================================================================================"
+  let queues = @[
+    ("std/system.Channels", ""),
+    ("threading/channels.Chan", "-d:butlerThreading"),
+    ("LoonyQueue", "-d:butlerLoony")
+  ]
+  
+  for (title, queueFlag) in queues:
+    echo fmt"INFO: ### COMPILE WITH {title} ###"
+    for file in findExamples("./examples"):
+      let command = fmt"nim c {queueFlag} {params} {file}"
+      echo "INFO: Compile ", command
+      exec command
+      
+      echo "INFO: OK"
+      echoSeparator()
+    echoSeparator()
+    echo fmt"INFO: {title} - OK"
+    echoSeparator()
+    echoSeparator()
 
 task exampleList, "list all available examples":
   for file in findExamples("./examples"):
@@ -169,15 +162,16 @@ task tests, "Runs the test-suite":
   let params = @[
     "--mm:arc",
     "--mm:orc",
+    "--cc:clang",
     "--debugger:native",
     "--threads:on",
+    "-d:butlerThreading",
     """--passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
-    """--passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" """,
     "-d:chronicles_enabled=off",
-    "-d:useMalloc"
+    "-d:useMalloc",
   ]
   let paramsStr = params.join(" ")
-  let command = fmt"balls {paramsStr}"
+  let command = fmt"ballsan {paramsStr}"
   exec command
 
 task nimidocs, "Compiles the nimibook docs":
