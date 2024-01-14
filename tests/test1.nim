@@ -25,6 +25,9 @@ threadServer(CLIENT_THREAD):
       responses.add(msg.string)
 
 threadServer(SERVER_THREAD):
+  properties:
+    sleepMs = 50
+
   messageTypes:
     Request
 
@@ -45,11 +48,11 @@ hub.withServer(SERVER_THREAD):
   
   var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
   while response.isNone():
+    sleep(10)
     response = hub.readMsg(ClientMessage)
   routeMessage(response.get(), hub) 
 
 hub.destroy()
-# `=destroy`(getGlobalDispatcher())
 setGlobalDispatcher(nil)
   
 check requests == @["TestMessage"], "Server did not receive Requests correctly"
