@@ -69,6 +69,19 @@ proc clearThreadVariables*() =
       when defined(gcOrc):
         GC_fullCollect() # from orc.nim. Has no destructor.
 
+proc processRemainingMessages[Msg](data: Server[Msg]) {.gcsafe.} =
+  mixin routeMessage
+  var msg: Option[Msg] = data.hub.readMsg(Msg)
+  try:
+    while msg.isSome():
+      {.gcsafe.}:
+        routeMessage(msg.get(), data.hub)
+
+      msg = data.hub.readMsg(Msg)
+  
+  except CatchableError as e:
+    error "Message caused exception", msg = msg.get()[], error = e.repr
+    
 proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
 
@@ -98,8 +111,9 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
 
   runServerLoop[Msg](data)
   
-  while hasPendingOperations():
-    poll()
+  # process remaining messages
+  processRemainingMessages(data) 
+  while hasPendingOperations(): poll()
   
   data.shutDown.execEvents()
   clearThreadVariables()
