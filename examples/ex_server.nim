@@ -8,7 +8,6 @@ type Request = distinct string
 
 threadServer(CLIENT_THREAD):
   properties:
-    sleepMs: 50
     startUp = @[]
     shutDown = @[]
     
@@ -24,7 +23,6 @@ threadServer(CLIENT_THREAD):
 
 threadServer(SERVER_THREAD):
   properties:
-    sleepMs = 100
     startUp = @[
       initEvent(() => debug "Server startin up!")
     ]

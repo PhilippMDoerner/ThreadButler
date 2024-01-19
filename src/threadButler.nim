@@ -1,9 +1,13 @@
-import std/[options, tables, os, atomics, asyncdispatch]
+import std/[options, tables, os, atomics]
 import ./threadButler/[types, codegen, channelHub, events, log]
 import chronicles
 import std/times {.all.} # Only needed for `clearThreadVariables`
 import system {.all.} # Only needed for `clearThreadVariables`
+import chronos
+import chronos/threadsync
+
 export chronicles
+export threadsync
 ##[  
   .. importdoc:: threadButler/integrations/owlButler
   
@@ -63,9 +67,9 @@ proc clearThreadVariables*() =
   ## May become unnecessary if https://github.com/nim-lang/Nim/issues/23165 ever gets fixed
   when not defined(butlerDocs):
     {.cast(gcsafe).}:
-      setGlobalDispatcher(nil)
       times.localInstance = nil
       times.utcInstance = nil
+      `=destroy`(getThreadDispatcher())
       when defined(gcOrc):
         GC_fullCollect() # from orc.nim. Has no destructor.
 
@@ -82,17 +86,19 @@ proc processRemainingMessages[Msg](data: Server[Msg]) {.gcsafe.} =
   except CatchableError as e:
     error "Message caused exception", msg = msg.get()[], error = e.repr
     
-proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
+proc runServerLoop[Msg](server: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
 
   while keepRunning():
-    var msg: Option[Msg] = data.hub.readMsg(Msg)
+    var counter = 0
+    var msg: Option[Msg] = server.hub.readMsg(Msg)
     try:
       while msg.isSome():
+        counter.inc
         {.gcsafe.}:
-          routeMessage(msg.get(), data.hub)
+          routeMessage(msg.get(), server.hub)
 
-        msg = data.hub.readMsg(Msg)
+        msg = server.hub.readMsg(Msg)
 
     except KillError:
       break
@@ -100,10 +106,9 @@ proc runServerLoop[Msg](data: Server[Msg]) {.gcsafe.} =
     except CatchableError as e:
       error "Message caused exception", msg = msg.get()[], error = e.repr
     
-    if hasPendingOperations():
-      drain(data.sleepMs)
-    else:
-      sleep(data.sleepMs)
+    debug "Going to Sleep after processing messages: ", counter
+    server.suspendThread()
+    debug "Woke up again"
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
@@ -113,10 +118,11 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   
   # process remaining messages
   processRemainingMessages(data) 
-  while hasPendingOperations(): poll()
+  # while hasPendingOperations(): poll() # TODO: How to wrap up async work until its done in chronos?
   
   data.shutDown.execEvents()
   clearThreadVariables()
+  echo "Last line"
 
 proc run*[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):

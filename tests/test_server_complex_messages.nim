@@ -1,15 +1,17 @@
 import balls
 import threadButler
-import std/[sugar, options, os, atomics, sequtils]
-import chronos
-
+import std/[sugar, options, os, sequtils, asyncdispatch]
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
 type Response = distinct int
-type Request = distinct int
 
-var responses: Atomic[int]
-var requests: Atomic[int]
+type ChildObj = ref object
+  id: int
+type Request = ref object
+  child: ChildObj
+
+var responses: seq[int] = @[]
+var requests: seq[int] = @[]
 var clientThreadStartupCounter: int = 0
 var clientThreadShutdownCounter: int = 0
 var serverThreadStartupCounter: int = 0
@@ -25,7 +27,7 @@ threadServer(CLIENT_THREAD):
     
   handlers:
     proc handleResponseOnClient(msg: Response, hub: ChannelHub) =
-      responses.atomicInc
+      responses.add(msg.int)
 
 threadServer(SERVER_THREAD):
   properties:
@@ -36,14 +38,12 @@ threadServer(SERVER_THREAD):
     Request
 
   handlers:
-    proc handleRequestOnServer(msg: Request, hub: ChannelHub) {.async.} = 
-      requests.atomicInc
-      await sleepAsync(10)
-      discard hub.sendMessage(Response(msg.int + 1))
+    proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
+      let id = msg.child.id
+      requests.add(id)
+      discard hub.sendMessage(Response(id + 1))
 
 prepareServers()
-
-const MESSAGE_COUNT = 10
 
 suite "Single Server Example":
   let hub = new(ChannelHub)
@@ -51,14 +51,15 @@ suite "Single Server Example":
   block whenBlock: 
     discard "When SERVER_THREAD gets started and the main thread sends 10 messages with the numbers 0-9"
     hub.withServer(SERVER_THREAD):
-      for i in 0..<MESSAGE_COUNT:
-        while not hub.sendMessage(i.Request): discard
+      for i in 0..<10:
+        let msg = Request(child: ChildObj(id: i))
+        while not hub.sendMessage(msg): discard
       
-      while responses.load() != MESSAGE_COUNT:
+      while responses.len() < 10:
         var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
         if response.isSome():
           routeMessage(response.get(), hub) 
-    
+  
   block thenBlock:
     discard "Then SERVER_THREAD should have variable of thread 'serverButlerThread', ran once and be shut down"
     check serverThreadStartupCounter == 1
@@ -73,8 +74,8 @@ suite "Single Server Example":
   
   block thenBlock: 
     discard "Then SERVER_THREAD should fill requests with the numbers 0-9 and send the responses 1-10 to the main thread"
-    check requests.load() == MESSAGE_COUNT, "Server did not receive Requests correctly"
-    check responses.load() == MESSAGE_COUNT, "Client did not receive Responses correctly"
+    check requests == (0..9).toSeq(), "Server did not receive Requests correctly"
+    check responses == (1..10).toSeq(), "Client did not receive Responses correctly"
 
   block thenBlock:
     discard "Then channel for ClientMessage should be empty"

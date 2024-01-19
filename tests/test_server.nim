@@ -27,7 +27,6 @@ threadServer(CLIENT_THREAD):
 
 threadServer(SERVER_THREAD):
   properties:
-    sleepMs = 50
     startUp = @[initEvent(() => serverThreadStartupCounter.inc)]
     shutDown = @[initEvent(() => serverThreadShutdownCounter.inc)]
   

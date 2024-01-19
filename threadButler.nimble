@@ -44,7 +44,7 @@ proc echoSeparator() =
 
 task example, "run a single example from the examples directory":
   let params = commandLineParams.filterIt(it.startsWith("-")).join(" ")
-  let fileName = commandLineParams[^1]
+  let fileName = commandLineParams.filterIt(it.endsWith(".nim"))[0]
   for example in findExamples("./examples"):
     if example.endsWith(fileName):
       let command = fmt"nim r {params} {example}"
@@ -166,12 +166,13 @@ task tests, "Runs the test-suite":
     "--debugger:native",
     "--threads:on",
     "-d:butlerThreading",
-    """--passc:\"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer\" """,
+    "--passc:\"-fno-omit-frame-pointer\"",
+    "--passc:\"-mno-omit-leaf-frame-pointer\"",
     "-d:chronicles_enabled=off",
     "-d:useMalloc",
   ]
   let paramsStr = params.join(" ")
-  let command = fmt"balls {paramsStr}"
+  let command = fmt"ballsan {paramsStr}"
   exec command
   
 task runTest, "Runs a single test file with asan or tsan":

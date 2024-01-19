@@ -51,6 +51,11 @@ proc fieldName*(node: NimNode): string =
   let typeName = node.typeName()
   return normalize(typeName) & "Msg"
 
+proc signalName*(name: ThreadName): string =
+  ## Infers the name of the thread-signal used to wake up the thread from
+  ## sleeping
+  name.string.toLower() & "Signal"
+
 macro toThreadVariable*(name: static string): untyped =
   ## Generates the identifier for the global variable containing the thread for
   ## `name`.
@@ -183,11 +188,20 @@ proc asThreadVar*(name: ThreadName): NimNode =
   ## Generates a global variable containing the thread for `name`:
   ## 
   ## `var <name>ButlerThread*: Thread[Server[<name>Message]]`
-  let variableName = name.threadVariableName.ident()
-  let variantName = name.variantName.ident()
+  let variableName = name.threadVariableName().ident()
+  let variantName = name.variantName().ident()
   
   return quote do:
     var `variableName`*: Thread[Server[`variantName`]]
+
+proc asSignalVar*(name: ThreadName): NimNode =
+  ## Generates a global variable containing the signal for `name`:
+  ## 
+  ## `var <name>Signal*: ThreadSignalPtr
+  let variableName = name.signalName().ident()
+  
+  return quote do:
+    var `variableName`* = new(ThreadSignalPtr)[]
 
 proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNode]): NimNode =
   ## Generates a proc `routeMessage` for unpacking the object variant type for `name` and calling a handler proc with the unpacked value.
@@ -201,7 +215,7 @@ proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNod
   ##    --- Repeat per route - start ---
   ##    of <enumKind>:
   ##      <handlerProc>(msg.<msgField>, hub) # if sync handlerProc
-  ##      asyncCheck <handlerProc>(msg.<msgField>, hub) # if async handlerProc
+  ##      asyncSpawn <handlerProc>(msg.<msgField>, hub) # if async handlerProc
   ##    --- Repeat per route - end ---
   ##    of <killKind>: shutDownServer()
   ## ```
@@ -243,7 +257,7 @@ proc genMessageRouter*(name: ThreadName, routes: seq[NimNode], types: seq[NimNod
     
     # Generates `of <enumKind>: <handlerCall>`
     let branchStatements = if handlerProc.isAsyncProc():
-        newStmtList(newCall("asyncCheck".ident, handlerCall))
+        newStmtList(newCall("asyncSpawn".ident, handlerCall))
       else:
         newStmtList(handlerCall)
     let branchNode = nnkOfBranch.newTree(
@@ -276,11 +290,19 @@ proc genSenderProc(name: ThreadName, typ: NimNode): NimNode =
   let msgKind = newIdentNode(typ.kindName)
   let variantField = newIdentNode(typ.fieldName)
   let senderProcName = newIdentNode(channelHub.SEND_PROC_NAME) # This string depends on the name 
+  let serverSignal = newIdentNode(name.signalName())
+  let threadName = newStrLitNode(name.string)
   
   quote do:
     proc `procName`*(hub: ChannelHub, msg: sink `msgType`): bool =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
-      return hub.`senderProcName`(msgWrapper)
+      let hasSentMessage = hub.`senderProcName`(msgWrapper)
+      
+      let response = `serverSignal`.fireSync()
+      if not response.isOk():
+        notice "Failed to wake up threadServer " & `threadName`
+      
+      return hasSentMessage
 
 proc genNewChannelHubProc*(): NimNode =
   ## Generates a proc `new` for instantiating a ChannelHub
@@ -344,23 +366,31 @@ proc genSendKillMessageProc*(name: ThreadName): NimNode =
   let variantType = newIdentNode(name.variantName)
   let killKind = newIdentNode(name.killKindName)
   let senderProcName = newIdentNode(channelHub.SEND_PROC_NAME) # This string depends on the name 
-
+  let serverSignal = name.signalName().ident()
+  let threadName = newStrLitNode(name.string)
+  
   result = quote do:
     proc sendKillMessage*(hub: ChannelHub, msg: typedesc[`variantType`]) =
       let killMsg = `variantType`(kind: `killKind`)
       discard hub.`senderProcName`(killMsg)
+      
+      let response = `serverSignal`.fireSync()
+      while not `serverSignal`.fireSync().isOk():
+        notice "Failed to wake up threadServer for kill message: " & `threadName`
 
 proc genInitServerProc*(name: ThreadName): NimNode =
   ## Generates a proc `initServer(hub: ChannelHub, typ: typedesc[<name>Message]): Server[<name>Message]`.
   ## 
   ## These procs instantiate a threadServer object which can then be run, which starts the server.
   let variantType = newIdentNode(name.variantName)
-
+  let signalVariable = newIdentNode(name.signalName)
+  
   result = quote do:
     proc initServer*(hub: ChannelHub, typ: typedesc[`variantType`]): Server[`variantType`] =
       result = Server[`variantType`]()
       result.msgType = default(`variantType`)
       result.hub = hub
+      result.signalReceiver = `signalVariable`
   
   for property in name.getProperties():
     property[0].assertKind(nnkIdent)
@@ -390,6 +420,8 @@ proc generateCode*(name: ThreadName): NimNode =
   
   let messageVariant = name.asVariant(types)
   result.add(messageVariant)
+  
+  result.add(name.asSignalVar())
   
   for typ in name.getTypes():
     result.add(genSenderProc(name, typ))
