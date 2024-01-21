@@ -76,39 +76,39 @@ proc clearThreadVariables*() =
 proc processRemainingMessages[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
   var msg: Option[Msg] = data.hub.readMsg(Msg)
-  try:
-    while msg.isSome():
+  while msg.isSome():
+    try:
       {.gcsafe.}:
         routeMessage(msg.get(), data.hub)
 
       msg = data.hub.readMsg(Msg)
   
-  except CatchableError as e:
-    error "Message caused exception", msg = msg.get()[], error = e.repr
-    
-proc runServerLoop[Msg](server: Server[Msg]) {.gcsafe.} =
-  mixin routeMessage
-
-  while keepRunning():
-    var counter = 0
-    var msg: Option[Msg] = server.hub.readMsg(Msg)
-    try:
-      while msg.isSome():
-        counter.inc
-        {.gcsafe.}:
-          routeMessage(msg.get(), server.hub)
-
-        msg = server.hub.readMsg(Msg)
-
-    except KillError:
-      break
-    
     except CatchableError as e:
       error "Message caused exception", msg = msg.get()[], error = e.repr
-    
-    debug "Going to Sleep after processing messages: ", counter
-    server.suspendThread()
-    debug "Woke up again"
+      
+proc runServerLoop[Msg](server: Server[Msg]) {.gcsafe.} =
+  mixin routeMessage
+  
+  try: 
+    while keepRunning():
+      server.waitForSendSignal()
+      var msg: Option[Msg] = server.hub.readMsg(Msg)
+      while msg.isSome():
+        try:
+          {.gcsafe.}:
+            routeMessage(msg.get(), server.hub)
+
+          msg = server.hub.readMsg(Msg)
+
+        except KillError as e:
+          raise (ref KillError)(parent: e) # Reraise as otherwise it will be caught as CatchableError
+        
+        except CatchableError as e:
+          error "Message caused exception", msg = msg.get()[], error = e.repr
+  
+  except KillError as e:
+    discard e
+    debug "Server Shutting down"
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
@@ -122,7 +122,6 @@ proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   
   data.shutDown.execEvents()
   clearThreadVariables()
-  echo "Last line"
 
 proc run*[Msg](thread: var Thread[Server[Msg]], data: Server[Msg]) =
   when not defined(butlerDocs):

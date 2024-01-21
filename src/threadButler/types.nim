@@ -23,7 +23,7 @@ type Section* = enum
   Handlers = "handlers" ## Section for all procs that handle the various message-types this threadServer can receive.
 const SECTION_NAMES*: HashSet[string] = Section.toSeq().mapIt($it).toHashSet()
 
-proc suspendThread*[Msg](server: Server[Msg]) = 
+proc waitForSendSignal*[Msg](server: Server[Msg]) = 
   ## Causes the server to work through its remaining async-work
   ## and go into a low powered state afterwards. Receiving a singla
   ## will wake the server up again.
