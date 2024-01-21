@@ -89,26 +89,21 @@ proc processRemainingMessages[Msg](data: Server[Msg]) {.gcsafe.} =
 proc runServerLoop[Msg](server: Server[Msg]) {.gcsafe.} =
   mixin routeMessage
   
-  try: 
+  block serverLoop: 
     while keepRunning():
       server.waitForSendSignal()
       var msg: Option[Msg] = server.hub.readMsg(Msg)
       while msg.isSome():
         try:
-          {.gcsafe.}:
-            routeMessage(msg.get(), server.hub)
+          {.gcsafe.}: routeMessage(msg.get(), server.hub)
 
           msg = server.hub.readMsg(Msg)
 
         except KillError as e:
-          raise (ref KillError)(parent: e) # Reraise as otherwise it will be caught as CatchableError
-        
+          break serverLoop
+          
         except CatchableError as e:
           error "Message caused exception", msg = msg.get()[], error = e.repr
-  
-  except KillError as e:
-    discard e
-    debug "Server Shutting down"
 
 proc serverProc*[Msg](data: Server[Msg]) {.gcsafe.} =
   mixin runServerLoop
