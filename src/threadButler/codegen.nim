@@ -298,9 +298,11 @@ proc genSenderProc(name: ThreadName, typ: NimNode): NimNode =
       let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
       let hasSentMessage = hub.`senderProcName`(msgWrapper)
       
-      let response = `serverSignal`.fireSync()
-      if not response.isOk():
-        notice "Failed to wake up threadServer " & `threadName`
+      if hasSentMessage:
+        let response = `serverSignal`.fireSync()
+        let hasSentSignal = response.isOk()
+        if not hasSentSignal:
+          notice "Failed to wake up threadServer " & `threadName`
       
       return hasSentMessage
 
