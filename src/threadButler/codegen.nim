@@ -293,16 +293,15 @@ proc genSenderProc(name: ThreadName, typ: NimNode): NimNode =
   let serverSignal = newIdentNode(name.signalName())
   let threadName = newStrLitNode(name.string)
   
-  quote do:
-    proc `procName`*(hub: ChannelHub, msg: sink `msgType`): bool =
-      let msgWrapper: `variantType` = `variantType`(kind: `msgKind`, `variantField`: msg)
-      let hasSentMessage = hub.`senderProcName`(msgWrapper)
+  genAst(procName, msgType, senderProcName, variantType, msgKind, variantField, serverSignal, threadName):
+    proc procName*(hub: ChannelHub, msg: sink msgType): bool =
+      let hasSentMessage: bool =  hub.senderProcName(variantType(kind: msgKind, `variantField`: move(msg)))
       
       if hasSentMessage:
-        let response = `serverSignal`.fireSync()
+        let response = serverSignal.fireSync()
         let hasSentSignal = response.isOk()
         if not hasSentSignal:
-          notice "Failed to wake up threadServer " & `threadName`
+          notice "Failed to wake up threadServer " & threadName
       
       return hasSentMessage
 

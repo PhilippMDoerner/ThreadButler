@@ -41,7 +41,8 @@ threadServer(SERVER_THREAD):
     proc handleRequestOnServer(msg: Request, hub: ChannelHub) = 
       let id = msg.child.id
       requests.add(id)
-      discard hub.sendMessage(Response(id + 1))
+      var resp = Response(id + 1)
+      discard hub.sendMessage(resp)
 
 prepareServers()
 
@@ -52,8 +53,8 @@ suite "Single Server Example":
     discard "When SERVER_THREAD gets started and the main thread sends 10 messages with the numbers 0-9"
     hub.withServer(SERVER_THREAD):
       for i in 0..<10:
-        let msg = Request(child: ChildObj(id: i))
-        while not hub.sendMessage(msg): discard
+        var msg = Request(child: ChildObj(id: i))
+        while not hub.sendMessage(move(msg)): discard
       
       while responses.len() < 10:
         var response: Option[ClientMessage] = hub.readMsg(ClientMessage)

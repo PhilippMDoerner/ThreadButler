@@ -87,11 +87,13 @@ proc sendMsgToChannel*[Msg](hub: ChannelHub, msg: sink Msg): bool {.raises: [Cha
   ## This is non-blocking.
   ## Returns `bool` stating if sending was successful.
   debug "send: Thread => Channel", msgTyp = $Msg, msg = msg.kind
-  when defined(butlerThreading):
-    let msg = msg.unsafeIsolate()
     
   try:
-    result = hub.getChannel(Msg).trySend(msg) 
+    when defined(butlerThreading):
+      result = hub.getChannel(Msg).trySend(unsafeIsolate(move(msg))) 
+    else:
+      result = hub.getChannel(Msg).trySend(move(msg)) 
+    
     if not result:
       debug "Failed to send message"
 
