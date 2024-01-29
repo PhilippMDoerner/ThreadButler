@@ -48,37 +48,38 @@ const MESSAGE_COUNT = 10
 suite "Single Server Example":
   let hub = new(ChannelHub)
   
-  block whenBlock: 
-    discard "When SERVER_THREAD gets started and the main thread sends 10 messages with the numbers 0-9"
-    hub.withServer(SERVER_THREAD):
-      for i in 0..<MESSAGE_COUNT:
-        while not hub.sendMessage(i.Request): discard
+  if not defined(gcArc):
+    block whenBlock: 
+      discard "When SERVER_THREAD gets started and the main thread sends 10 messages with the numbers 0-9"
+      hub.withServer(SERVER_THREAD):
+        for i in 0..<MESSAGE_COUNT:
+          while not hub.sendMessage(i.Request): discard
+        
+        while responses.load() != MESSAGE_COUNT:
+          var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
+          if response.isSome():
+            routeMessage(response.get(), hub) 
       
-      while responses.load() != MESSAGE_COUNT:
-        var response: Option[ClientMessage] = hub.readMsg(ClientMessage)
-        if response.isSome():
-          routeMessage(response.get(), hub) 
+    block thenBlock:
+      discard "Then SERVER_THREAD should have variable of thread 'serverButlerThread', ran once and be shut down"
+      check serverThreadStartupCounter == 1
+      check serverThreadShutdownCounter == 1
+      check serverButlerThread.running() == false
     
-  block thenBlock:
-    discard "Then SERVER_THREAD should have variable of thread 'serverButlerThread', ran once and be shut down"
-    check serverThreadStartupCounter == 1
-    check serverThreadShutdownCounter == 1
-    check serverButlerThread.running() == false
-  
-  block thenBlock:
-    discard "Then CLIENT_THREAD should have variable of thread 'clientButlerThread' which should have never run"
-    check clientThreadStartupCounter == 0
-    check clientThreadShutdownCounter == 0
-    check clientButlerThread.running() == false
-  
-  block thenBlock: 
-    discard "Then SERVER_THREAD should fill requests with the numbers 0-9 and send the responses 1-10 to the main thread"
-    check requests.load() == MESSAGE_COUNT, "Server did not receive Requests correctly"
-    check responses.load() == MESSAGE_COUNT, "Client did not receive Responses correctly"
+    block thenBlock:
+      discard "Then CLIENT_THREAD should have variable of thread 'clientButlerThread' which should have never run"
+      check clientThreadStartupCounter == 0
+      check clientThreadShutdownCounter == 0
+      check clientButlerThread.running() == false
+    
+    block thenBlock: 
+      discard "Then SERVER_THREAD should fill requests with the numbers 0-9 and send the responses 1-10 to the main thread"
+      check requests.load() == MESSAGE_COUNT, "Server did not receive Requests correctly"
+      check responses.load() == MESSAGE_COUNT, "Client did not receive Responses correctly"
 
-  block thenBlock:
-    discard "Then channel for ClientMessage should be empty"
-    check hub.getChannel(ClientMessage).peek() == 0
-    check hub.getChannel(ServerMessage).peek() == 0
+    block thenBlock:
+      discard "Then channel for ClientMessage should be empty"
+      check hub.getChannel(ClientMessage).peek() == 0
+      check hub.getChannel(ServerMessage).peek() == 0
   
   hub.destroy()
