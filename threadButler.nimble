@@ -172,7 +172,8 @@ task tests, "Runs the test-suite":
     "-d:useMalloc",
   ]
   let paramsStr = params.join(" ")
-  let command = fmt"ballsan {paramsStr}"
+  let command = fmt"balls {paramsStr}"
+  echo command
   exec command
   
 task runTest, "Runs a single test file with asan or tsan":
