@@ -13,7 +13,7 @@ requires "nim >= 2.0.0"
 requires "taskpools >= 0.0.5"
 requires "chronicles >= 0.10.3"
 requires "chronos >= 4.0.0"
-
+taskRequires "nimidocs", "nimibook#head"
 when defined(butlerThreading):
   requires "threading#head"
   
@@ -113,7 +113,7 @@ task docs, "Generate the nim docs":
   for paramSet in paramSets:
     echoSeparator()
     let paramStr = paramSet.join(" ")
-    let command = fmt"nim doc -d:butlerDocs --git.url:git@github.com:PhilippMDoerner/ThreadButler.git --git.commit:master --hints:off {paramStr}"
+    let command = fmt"nim doc -d:butlerDocs -d:butlerDocsDebug --git.url:git@github.com:PhilippMDoerner/ThreadButler.git --git.commit:master --hints:off {paramStr}"
     echo "Command: ", command
     exec command
   

@@ -6,7 +6,7 @@ import system {.all.} # Only needed for `clearThreadVariables`
 import chronos
 export chronicles
 
-when not defined(butlerDocs): # See https://github.com/status-im/nim-chronos/issues/499 
+when not defined(butlerDocsDebug): # See https://github.com/status-im/nim-chronos/issues/499 
   import chronos/threadsync
   export threadsync
 

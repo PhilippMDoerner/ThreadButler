@@ -1,7 +1,7 @@
 import std/[sets, sequtils]
 import ./[channelHub, events]
 import chronos
-when not defined(butlerDocs): # See https://github.com/status-im/nim-chronos/issues/499 
+when not defined(butlerDocsDebug): # See https://github.com/status-im/nim-chronos/issues/499 
   import chronos/threadsync
 
   type Server*[Msg] = object ## Data representing a single threadServer

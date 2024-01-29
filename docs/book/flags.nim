@@ -15,7 +15,7 @@ butlerDebug     | -d:butlerDebug                | Prints all generated code to t
 butlerThreading | -d:butlerThreading            | Changes the underlying implementation from using system.Channels to threading/channels.Chan
 butlerLogLevel  | -d:butlerLogLevel='lvlDebug'  | Sets the internal log level for threadButler (Based on std/logging's [Level](https://nim-lang.org/docs/logging.html#Level)). All logging calls beneath that level get removed at compile time. Defaults to "lvlerror".
 butlerDocs      | -d:butlerDocs                 | Internal Switch. Solely used to avoid actually running example-code when compiling docs with examples.
-
+butlerDocsDebug | -d:butlerDocsDebug            | Internal Switch. Solely used to avoid doc compilation bugs introduced by other libraries (does not apply to nimibook docs).
 ## butlerThreading (! experimental !)
 Normally threadButler uses [system.Channel](https://nim-lang.org/docs/system.html#Channel) for communication through the ChannelHub.
 
