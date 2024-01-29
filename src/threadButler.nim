@@ -4,10 +4,12 @@ import chronicles
 import std/times {.all.} # Only needed for `clearThreadVariables`
 import system {.all.} # Only needed for `clearThreadVariables`
 import chronos
-import chronos/threadsync
-
 export chronicles
-export threadsync
+
+when not defined(butlerDocs): # See https://github.com/status-im/nim-chronos/issues/499 
+  import chronos/threadsync
+  export threadsync
+
 ##[  
   .. importdoc:: threadButler/integrations/owlButler
   
