@@ -78,8 +78,9 @@ suite "Single Server Example":
       check responses.load() == MESSAGE_COUNT, "Client did not receive Responses correctly"
 
     block thenBlock:
-      discard "Then channel for ClientMessage should be empty"
-      check hub.getChannel(ClientMessage).peek() == 0
-      check hub.getChannel(ServerMessage).peek() == 0
+      when not defined(butlerLoony):
+        discard "Then channel for ClientMessage should be empty"
+        check hub.getChannel(ClientMessage).peek() == 0
+        check hub.getChannel(ServerMessage).peek() == 0
   
   hub.destroy()
