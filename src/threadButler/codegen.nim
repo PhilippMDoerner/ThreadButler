@@ -197,7 +197,7 @@ proc asThreadVar*(name: ThreadName): NimNode =
 proc asSignalVar*(name: ThreadName): NimNode =
   ## Generates a global variable containing the signal for `name`:
   ## 
-  ## `var <name>Signal*: ThreadSignalPtr
+  ## `var <name>Signal*: ThreadSignalPtr`
   let variableName = name.signalName().ident()
   
   return quote do:
