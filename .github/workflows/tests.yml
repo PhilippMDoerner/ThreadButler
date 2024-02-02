@@ -46,7 +46,7 @@ jobs:
       NIM_BRANCH: ${{ matrix.target.nim_branch }}
       NIM_ARCH: ${{ matrix.target.cpu }}
     steps:
-      - name: Checkout threading
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Restore Nim from cache
@@ -65,6 +65,7 @@ jobs:
           path: 'nim'
           version: ${{ matrix.target.nim_branch }}
           architecture: ${{ matrix.target.cpu }}
+      
       - name: Setup Dependencies
         run: nimble --accept install
       
@@ -79,4 +80,4 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --cc:clang --debugger:native --passc:"-fno-omit-frame-pointer" --passc:"-mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
+          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --cc:clang --debugger:native --passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" --passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
