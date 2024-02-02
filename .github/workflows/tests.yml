@@ -65,7 +65,9 @@ jobs:
           path: 'nim'
           version: ${{ matrix.target.nim_branch }}
           architecture: ${{ matrix.target.cpu }}
-
+      - name: Setup Dependencies
+        run: nimble install
+      
       - name: Prepare balls
         shell: bash
         run: |

@@ -14,14 +14,11 @@ requires "taskpools >= 0.0.5"
 requires "chronicles >= 0.10.3"
 requires "chronos >= 4.0.0"
 taskRequires "nimidocs", "nimibook#head"
-when defined(butlerThreading):
-  requires "threading#head"
-  
-when defined(butlerLoony):
-  requires "https://github.com/nim-works/loony.git >= 0.1.12"
+requires "threading#head" # for -d:butlerThreading
+requires "https://github.com/nim-works/loony.git >= 0.1.12" # for -d:butlerLoony
 
 # Dev Dependencies
-requires "https://github.com/disruptek/balls#v4"
+# requires "https://github.com/disruptek/balls#v4"
 
 # Example-Dependencies
 requires "owlkettle#head"
