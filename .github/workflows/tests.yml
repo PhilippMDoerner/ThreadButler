@@ -37,7 +37,7 @@ jobs:
         include:
           - target:
               os: linux
-            builder: arch
+            builder: ubuntu-latest
 
     name: '${{ matrix.target.os }}-${{ matrix.target.cpu }}-nim-${{ matrix.target.nim_branch }} (${{ matrix.branch }})'
     runs-on: ${{ matrix.builder }}
