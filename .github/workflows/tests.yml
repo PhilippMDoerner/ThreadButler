@@ -1,0 +1,80 @@
+name: Run Tests
+
+# Execute this workflow only for PRs/Pushes to your develop branch
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+
+#Defines the permissions that the default GITHUB_TOKEN secret has that gets generated (see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication)
+permissions: 
+  contents: write
+  id-token: write
+  
+# Execute a job called "Tests" once for each combination of defined nim-versions and os's.
+# It will execute on ubuntu-latest, window-latest and macOs-latest.
+# For execution it will install the package according to the nimble file
+# and then run the nimble command `test` that executes the tests 
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        branch: [master]
+        target:
+          - os: linux
+            cpu: amd64
+            nim_branch: devel
+          - os: linux
+            cpu: amd64
+            nim_branch: version-2-0
+        include:
+          - target:
+              os: linux
+            builder: ubuntu-22.04
+
+    name: '${{ matrix.target.os }}-${{ matrix.target.cpu }}-nim-${{ matrix.target.nim_branch }} (${{ matrix.branch }})'
+    runs-on: ${{ matrix.builder }}
+    env:
+      NIM_DIR: nim-${{ matrix.target.nim_branch }}-${{ matrix.target.cpu }}
+      NIM_BRANCH: ${{ matrix.target.nim_branch }}
+      NIM_ARCH: ${{ matrix.target.cpu }}
+    steps:
+      - name: Checkout threading
+        uses: actions/checkout@v4
+
+      - name: Restore Nim from cache
+        if: >
+          steps.nim-compiler-cache.outputs.cache-hit != 'true' &&
+          matrix.target.nim_branch != 'devel'
+        id: nim-compiler-cache
+        uses: actions/cache@v3
+        with:
+          path: '${{ github.workspace }}/nim-${{ matrix.target.nim_branch }}-${{ matrix.target.cpu }}'
+          key: 'nim-${{ matrix.target.cpu }}-${{ matrix.target.nim_branch }}'
+
+      - name: Setup Nim
+        uses: alaviss/setup-nim@0.1.1
+        with:
+          path: 'nim'
+          version: ${{ matrix.target.nim_branch }}
+          architecture: ${{ matrix.target.cpu }}
+
+      - name: Prepare balls
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt install --fix-missing valgrind
+          nimble --accept develop
+          nimble --accept install "https://github.com/disruptek/balls@#v4"
+
+      - name: Run tests
+        shell: bash
+        run: |
+          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --cc:clang --debugger:native --passc:"-fno-omit-frame-pointer" --passc:"-mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
