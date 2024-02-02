@@ -1,6 +1,6 @@
 import balls
 import threadButler
-import std/[sugar, options, os, sequtils, asyncdispatch]
+import std/[sugar, options, os, sequtils]
 const CLIENT_THREAD = "client"
 const SERVER_THREAD = "server"
 type Response = distinct int
