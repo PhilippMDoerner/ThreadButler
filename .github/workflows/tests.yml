@@ -76,8 +76,8 @@ jobs:
           sudo apt install --fix-missing valgrind
           nimble --accept develop
           nimble --accept install "https://github.com/disruptek/balls@#v4"
-
+          
       - name: Run tests
         shell: bash
         run: |
-          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --cc:clang --debugger:native --passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" --passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
+          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --debugger:native --passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" --passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
