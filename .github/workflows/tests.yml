@@ -80,4 +80,4 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          balls --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --debugger:native --passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" --passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
+          balls --define:ballsFailFast=off --path="." -d:useMalloc --panics:on --exceptions:goto --backend:c --mm:arc --mm:orc --debugger:native --passc:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" --passl:"-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer" -d:butlerThreading -d:chronicles_enabled=off
